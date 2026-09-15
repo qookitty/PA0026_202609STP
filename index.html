@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>壓合記錄資訊看板｜整合完整版</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--bg:#0f1420;--panel:#161d2e;--panel2:#1c2438;--text:#f3f5f9;--muted:#a7b0c2;--border:#2a3348;--accent:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--energy:#fbbf24}
+[data-theme="light"]{--bg:#f4f6fa;--panel:#fff;--panel2:#eef2f7;--text:#192234;--muted:#596479;--border:#d8dfeb;--accent:#2563eb;--ok:#16a34a;--warn:#d97706;--danger:#dc2626;--energy:#d97706}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Microsoft JhengHei","PingFang TC",Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.35;cursor:not-allowed}
+header{position:sticky;top:0;z-index:30;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:13px 18px;background:linear-gradient(90deg,var(--panel),var(--panel2));border-bottom:1px solid var(--border)}
+h1{font-size:1.15rem;margin:0}.badge{font-size:.62em;background:var(--accent);color:#fff;border-radius:12px;padding:3px 8px;margin-left:6px}
+.headerRight,.seg{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.updated{font-size:.78rem;color:var(--muted)}.dot{display:inline-block;width:8px;height:8px;background:var(--ok);border-radius:50%;margin-right:5px}
+.seg{padding:3px;background:var(--panel2);border-radius:9px}.seg button,.btn{border:1px solid var(--border);border-radius:7px;padding:8px 11px;min-height:38px;background:var(--panel2);color:var(--text);font-size:.83rem}
+.seg button.active,.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.ghost{background:transparent}.btn.warn{background:var(--warn);border-color:var(--warn);color:#fff}.btn.danger2{background:var(--danger);border-color:var(--danger);color:#fff}
+.container{max-width:1500px;margin:auto;padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px}.kpi.energy{border-left:4px solid var(--energy)}
+.kpi .num{font-size:1.35rem;font-weight:800;color:var(--accent)}.kpi.energy .num{color:var(--energy)}.kpi .lbl{font-size:.76rem;color:var(--muted);margin-top:3px}
+.tabs{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;border-bottom:1px solid var(--border);margin-bottom:12px}
+.tab{border:1px solid transparent;border-bottom:none;color:var(--muted);background:transparent;padding:10px 14px;border-radius:8px 8px 0 0;min-height:44px;font-weight:700;white-space:nowrap}
+.tab.active{background:var(--panel);color:var(--text);border-color:var(--border)}
+.tabcontent{display:none}.tabcontent.active{display:block}
+.panel{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:12px;margin-bottom:14px}
+.panel h2,.panel h3{margin:0 0 10px;font-size:1.05rem}.hint{font-size:.83rem;color:var(--muted);line-height:1.55}
+.filters,.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.filters input,.filters select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px;min-height:40px}
+.filters input[type=text]{min-width:200px;flex:1}
+.historyBar{display:flex;gap:6px;align-items:center}
+.breadcrumbs{display:none;gap:7px;align-items:center;flex-wrap:wrap;background:var(--panel2);border:1px solid var(--border);padding:9px 10px;border-radius:10px;margin-bottom:12px;font-size:.84rem}
+.breadcrumbs.show{display:flex}.crumb{display:inline-flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:4px 8px}
+.crumb button{border:0;background:transparent;color:var(--danger);cursor:pointer;font-weight:bold}.crumbLabel{color:var(--muted)}
+.tablewrap{overflow:auto;max-height:55vh}table{border-collapse:collapse;width:100%;font-size:.86rem}
+th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:9px 8px;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer}
+td{padding:8px 8px;border-bottom:1px solid var(--border);white-space:nowrap}tr[data-id],tr.clickable{cursor:pointer}tr[data-id]:hover,tr.clickable:hover{background:var(--panel2)}tr.hl{outline:2px solid var(--warn)}
+.tag{display:inline-block;padding:3px 8px;border-radius:7px;font-size:.78rem;background:var(--panel2);border:1px solid var(--border)}
+.tag.staff{color:var(--accent)}.tag.unit{color:var(--ok)}.tag.shift{color:var(--warn)}.tag.ok{color:var(--ok);border-color:var(--ok)}.tag.warn{color:var(--warn);border-color:var(--warn)}
+.tag.meterA{color:#f59e0b;border-color:#f59e0b}.tag.meterB{color:#06b6d4;border-color:#06b6d4}
+.chartGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.chartbox{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:270px}
+.chartbox.wide{grid-column:1/-1}.chartbox h4{margin:0 0 7px;font-size:.9rem}
+.drillable:hover{box-shadow:0 0 0 2px var(--accent) inset}
+.multiRow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;min-height:34px}.multiRow .chip{background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:4px 9px;font-size:.78rem}
+.monthPicker{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.chip{display:flex;gap:6px;align-items:center;border:1px solid var(--border);background:var(--panel2);border-radius:18px;padding:7px 11px;font-size:.84rem}.chip input{accent-color:var(--accent)}
+.presetRow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.presetRow button{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:18px;padding:7px 13px;font-size:.82rem;font-weight:600}
+.presetRow button:hover,.presetRow button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.viewMode{display:flex;gap:8px;margin-bottom:10px}.viewMode button{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:8px;padding:8px 12px}.viewMode button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.drawerBack{display:none;position:fixed;inset:0;background:#0008;z-index:40}.drawerBack.show{display:block}
+.drawer{position:fixed;top:0;right:-520px;width:min(500px,94vw);height:100vh;z-index:45;background:var(--panel);border-left:1px solid var(--border);padding:18px;overflow:auto;transition:right .25s}.drawer.show{right:0}
+.drawer h2{font-size:1.1rem;margin:0 0 8px}.drawerClose{float:right;border:0;background:transparent;color:var(--text);font-size:1.5rem}
+.summaryGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}.summary{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px}.summary .v{font-weight:800;color:var(--accent);font-size:1.1rem}.summary .l{font-size:.74rem;color:var(--muted);margin-top:3px}
+.drawerList{margin-top:12px;border-top:1px solid var(--border)}.drawerRow{padding:9px 0;border-bottom:1px solid var(--border);font-size:.85rem;cursor:pointer}.drawerRow:hover{background:var(--panel2)}
+.empty{text-align:center;padding:30px;color:var(--muted)}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ok);color:#fff;padding:10px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s;z-index:70}.toast.show{opacity:1}
+.modalBg{display:none;position:fixed;inset:0;background:#0009;z-index:80;align-items:center;justify-content:center;padding:16px}.modalBg.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;max-width:520px;width:100%}.modal dl{display:grid;grid-template-columns:110px 1fr;gap:8px;margin:0}.modal dt{color:var(--muted)}.modal dd{margin:0;word-break:break-word}
+.demoNote{background:#f59e0b22;border:1px solid var(--warn);border-radius:8px;padding:8px 10px;font-size:.8rem;margin-bottom:10px}
+.msWrap{position:relative}.msBtn{min-width:150px;text-align:left}
+.msCount{background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:.72rem;margin-left:4px}
+.msPanel{display:none;position:absolute;top:105%;left:0;z-index:35;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:240px;max-height:320px;overflow:auto;box-shadow:0 8px 22px #0006}
+.msPanel.show{display:block}.msPanel label{display:flex;align-items:center;gap:7px;padding:6px 4px;font-size:.85rem;border-radius:6px;cursor:pointer}.msPanel label:hover{background:var(--panel2)}
+.msPanel .msActions{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}.msPanel .msActions button{font-size:.75rem;padding:5px 9px;min-height:30px}
+.excludeToggle{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:var(--panel2);border-radius:8px;font-size:.8rem}
+.groupBlock{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.groupHeader{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--panel2);cursor:pointer;font-weight:700}
+.groupHeader .cnt{background:var(--accent);color:#fff;border-radius:10px;padding:2px 9px;font-size:.78rem;font-weight:700}
+.groupBody{display:none;padding:6px 14px 10px}.groupBody.show{display:block}
+.groupRow{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.85rem;cursor:pointer}.groupRow:hover{background:var(--panel2)}
+.shiftRow{display:grid;grid-template-columns:110px 110px 110px 60px;gap:8px;align-items:center;margin-bottom:8px}
+.shiftRow input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px;min-height:36px}
+.rateRow{display:grid;grid-template-columns:100px 140px;gap:8px;align-items:center;margin-bottom:8px}
+.rateRow input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px;min-height:36px}
+.eventItem{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.eventDot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.eventDot.low{background:var(--warn)}.eventDot.nonprod{background:var(--muted)}.eventDot.energy{background:var(--danger)}
+.eventBody b{display:block}.eventBody .meta{font-size:.78rem;color:var(--muted)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:8px}.legend .sw{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.detailBox{display:none;margin-top:12px;padding:12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px}.detailBox.show{display:block}
+.kwhInput{width:80px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px}
+.meterForm{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px}
+.meterForm input,.meterForm select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;min-height:40px}
+.deltaCard{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px}
+.deltaCard .v{font-weight:800;color:var(--energy);font-size:1.1rem}
+.editInput{background:var(--panel);border:1px solid var(--accent);color:var(--text);border-radius:6px;padding:5px;width:100%}
+th.sortable::after{content:' ⇅';color:var(--muted);font-size:.75em}
+th.sortAsc::after{content:' ▲';color:var(--accent);font-size:.75em}
+th.sortDesc::after{content:' ▼';color:var(--accent);font-size:.75em}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.chartGrid{grid-template-columns:1fr}.chartbox.wide{grid-column:auto}.filters input,.filters select,.msWrap{width:100%}.filters .btn{width:100%}.tablewrap{display:none}.cardList{display:flex;flex-direction:column;gap:8px}.recordCard{background:var(--panel2);border:1px solid var(--border);padding:10px;border-radius:9px;cursor:pointer}.recordCard strong{display:block;margin-bottom:5px}.drawer{width:100%;right:-100%}.shiftRow{grid-template-columns:1fr 1fr}}
+@media(min-width:761px){.cardList{display:none}}
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <h1>🗜️ 壓合記錄資訊看板 <span class="badge">整合完整版</span></h1>
+  <div class="headerRight"><span class="updated"><i class="dot"></i><span id="updated"></span></span><div class="seg"><button id="darkBtn" class="active" onclick="setTheme('dark')">🌙 深色</button><button id="lightBtn" onclick="setTheme('light')">☀️ 淺色</button></div></div>
+</header>
+<main class="container">
+  <div class="kpis" id="kpis"></div>
+  <div class="breadcrumbs" id="breadcrumbs">
+    <div class="historyBar"><button class="btn" id="backBtn" onclick="goBack()">◀ 上一步</button><button class="btn" id="fwdBtn" onclick="goForward()">下一步 ▶</button></div>
+    <span class="crumbLabel">篩選／下鑽：</span><span id="crumbs"></span><button class="btn ghost" onclick="clearAll()">↺ 清除全部</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="calendar">📅 生產日曆</button>
+    <button class="tab" data-tab="records">📋 記錄清單</button>
+    <button class="tab" data-tab="analysis">📊 分析統計</button>
+    <button class="tab" data-tab="infographic">🖼️ 資訊圖表</button>
+    <button class="tab" data-tab="shiftsettings">⚙️ 班別設定</button>
+    <button class="tab" data-tab="condopt">🧪 條件參數優化</button>
+    <button class="tab" data-tab="staffcap">👤 人員作業分析</button>
+    <button class="tab" data-tab="events">⚠️ 異常／停機事件</button>
+    <button class="tab" data-tab="energy">⚡ 能源與生產整合</button>
+    <button class="tab" data-tab="meter">📟 電表抄表紀錄</button>
+  </div>
+
+  <section class="tabcontent active" id="calendar">
+    <div class="panel"><div class="actions"><button class="btn" onclick="changeMonth(-1)">◀ 上個月</button><b id="monthTitle"></b><button class="btn" onclick="changeMonth(1)">下個月 ▶</button></div><div class="hint">點擊日期格可下鑽查看該日壓合履歷。</div><div id="calendarGrid" class="chartGrid" style="grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px"></div></div>
+  </section>
+
+  <section class="tabcontent" id="records">
+    <div class="panel">
+      <h3>記錄清單</h3>
+      <div class="filters">
+        <input id="search" type="text" placeholder="搜尋條件、人員、日期…" oninput="onSearchInput()">
+        <div class="msWrap" id="msCondWrap"><button type="button" class="btn msBtn" onclick="toggleMS('msCond')">🧪 壓合條件 <span class="msCount" id="msCondCount"></span> ▾</button><div class="msPanel" id="msCondPanel"></div></div>
+        <div class="msWrap" id="msStaffWrap"><button type="button" class="btn msBtn" onclick="toggleMS('msStaff')">👤 人員／單位 <span class="msCount" id="msStaffCount"></span> ▾</button><div class="msPanel" id="msStaffPanel"></div></div>
+        <div class="msWrap" id="msShiftWrap"><button type="button" class="btn msBtn" onclick="toggleMS('msShift')">🕒 班別 <span class="msCount" id="msShiftCount"></span> ▾</button><div class="msPanel" id="msShiftPanel"></div></div>
+        <select id="fMonth" onchange="onMonthSelect()"><option value="">全部月份</option></select>
+        <input id="fFrom" type="date" onchange="onDateRangeChange()"><input id="fTo" type="date" onchange="onDateRangeChange()">
+        <button class="btn" onclick="resetFilters()">清除全部篩選</button>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" onclick="openFilteredCharts()">📊 產生資訊圖表（目前篩選結果）</button>
+        <button class="btn ghost" id="groupToggleBtn" onclick="toggleGroupView()">🗂️ 依人員／單位分組顯示</button>
+      </div>
+      <div class="hint" id="recordCount"></div>
+      <div id="normalView">
+        <div class="tablewrap"><table><thead><tr><th>編號</th><th>日期時間</th><th>班別</th><th>壓合／試驗條件</th><th>人員／單位</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+        <div class="cardList" id="cardList"></div>
+      </div>
+      <div id="groupedView" style="display:none"></div>
+    </div>
+    <div class="panel" id="filteredChartsPanel" style="display:none"><h3>📊 篩選結果資訊圖表</h3><div class="monthPicker" style="margin-top:10px"><label class="chip"><input type="checkbox" value="pie" checked>🥧 條件圓餅圖</label><label class="chip"><input type="checkbox" value="doughnut" checked>🍩 人員環形圖</label><label class="chip"><input type="checkbox" value="line" checked>📈 每日折線圖</label><label class="chip"><input type="checkbox" value="bar" checked>📊 條件橫條圖</label><label class="chip"><input type="checkbox" value="shift" checked>🕒 班別比較圖</label></div><button class="btn primary" onclick="renderFilteredCharts()">🔄 產生圖表</button><div id="filteredKpis" class="kpis" style="margin-top:12px"></div><div id="filteredCharts" class="chartGrid"></div></div>
+  </section>
+
+  <section class="tabcontent" id="analysis">
+    <div class="panel"><h3>分析統計</h3><div class="chartGrid" id="analysisCharts"></div></div>
+  </section>
+
+  <section class="tabcontent" id="infographic">
+    <div class="panel" id="infoArea"><h3>🖼️ 壓合記錄生產資訊圖表</h3><div class="chartGrid" id="infoCharts" style="margin-top:10px"></div></div>
+    <div class="panel"><h3>⚠️ 能耗異常規則下鑽</h3><div class="demoNote">使用模擬耗電量（kWh）示範，非真實電表值。</div><button class="btn warn" onclick="showAnomalyBatches()">🔺 找出能耗異常批次</button><div class="hint" id="anomalyHint" style="margin-top:8px"></div></div>
+    <div class="panel"><h3>📆 按月份比較每日產量趨勢</h3><div id="monthPicker" class="monthPicker" style="margin-top:10px"></div><div class="viewMode"><button id="overlayBtn" class="active" onclick="setMonthMode('overlay')">🔗 疊圖比較</button><button id="separateBtn" onclick="setMonthMode('separate')">▦ 分開顯示</button></div><div id="monthOverlay" class="chartbox"><canvas id="monthOverlayCanvas"></canvas></div><div id="monthSeparate" class="chartGrid" style="display:none"></div></div>
+    <div class="panel"><h3>🗓️ 自訂日期區間產量趨勢</h3><div class="presetRow" id="presetRow"></div><div class="filters"><span class="hint" style="margin:0">或自訂最近</span><input type="number" id="customDaysInput" min="1" max="366" placeholder="天數" style="width:90px"><button class="btn" onclick="applyCustomDays()">套用天數</button></div><div class="filters"><input type="date" id="crFrom"><input type="date" id="crTo"><button class="btn primary" onclick="applyCustomRange()">套用區間</button><button class="btn" onclick="toggleAllCustom(true)">全選</button><button class="btn" onclick="toggleAllCustom(false)">全不選</button></div><div id="dateChecks" class="monthPicker"></div><div class="chartbox"><canvas id="customCanvas"></canvas></div><div class="hint" id="customHint"></div></div>
+  </section>
+
+  <section class="tabcontent" id="shiftsettings">
+    <div class="panel">
+      <h3>⚙️ 班別設定</h3>
+      <div class="presetRow"><button onclick="applyShiftPreset(3)">套用三班制（白／中／夜）</button><button onclick="applyShiftPreset(2)">套用兩班制（日／夜）</button></div>
+      <div id="shiftRows" style="margin-top:10px"></div>
+      <div class="actions"><button class="btn ghost" onclick="addShiftRow()">＋ 新增班別</button><button class="btn primary" onclick="applyShiftConfig()">✅ 套用班別設定</button></div>
+      <div class="hint" id="shiftConfigHint"></div>
+    </div>
+  </section>
+
+  <section class="tabcontent" id="condopt">
+    <div class="panel">
+      <h2>🧪 條件參數優化看板</h2>
+      <div class="kpis" id="condKpis"></div>
+      <div class="chartGrid"><div class="chartbox wide"><h4>條件使用次數排行（點擊長條查看詳情）</h4><canvas id="condRankChart"></canvas></div></div>
+      <div class="tablewrap" style="margin-top:14px"><table><thead><tr><th onclick="sortCondTable('cond')">條件名稱</th><th onclick="sortCondTable('count')">使用次數</th><th onclick="sortCondTable('share')">佔比</th><th onclick="sortCondTable('staffCount')">操作人員數</th><th>主要操作人員</th><th onclick="sortCondTable('first')">首次使用</th><th onclick="sortCondTable('last')">最近使用</th><th onclick="sortCondTable('span')">跨度(天)</th></tr></thead><tbody id="condTableBody"></tbody></table></div>
+      <div class="detailBox" id="condDetail"></div>
+    </div>
+  </section>
+
+  <section class="tabcontent" id="staffcap">
+    <div class="panel">
+      <h2>👤 人員作業分析看板</h2>
+      <div class="kpis" id="staffKpis"></div>
+      <div class="chartGrid"><div class="chartbox"><h4>每人總筆數比較</h4><canvas id="staffBarChart"></canvas></div><div class="chartbox"><h4>月度分布（依人員）</h4><canvas id="staffMonthChart"></canvas></div></div>
+      <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>人員／單位</th><th>總筆數</th><th>佔比</th><th>出勤天數</th><th>平均每出勤日筆數</th><th>常用條件Top3</th></tr></thead><tbody id="staffTableBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="tabcontent" id="events">
+    <div class="panel">
+      <h2>⚠️ 異常／停機事件看板</h2>
+      <div class="demoNote">「能耗異常」使用模擬kWh資料示範。</div>
+      <div class="kpis" id="eventKpis"></div>
+      <div class="chartGrid"><div class="chartbox"><h4>事件類型次數統計</h4><canvas id="eventTypeChart"></canvas></div><div class="chartbox"><h4>非生產性批次重複發生檢查</h4><div id="recurrenceBox" style="margin-top:6px"></div></div></div>
+      <div class="legend"><span><span class="sw" style="background:var(--warn)"></span>產量偏低警示</span><span><span class="sw" style="background:var(--muted)"></span>非生產性批次</span><span><span class="sw" style="background:var(--danger)"></span>能耗異常</span></div>
+      <div id="eventTimeline" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section class="tabcontent" id="energy">
+    <div class="panel">
+      <h2>⚡ 能源與生產整合看板</h2>
+      <div class="demoNote">kWh、待機耗電、電價時段皆為模擬示範資料，可於下方自行編輯覆寫。</div>
+      <div class="hint"><b>時段定義</b>：🔴 尖峰 10:00～12:00、13:00～17:00｜🟡 半尖峰 07:00～10:00、17:00～22:00｜🟢 離峰 22:00～07:00、12:00～13:00</div>
+      <h3 style="margin-top:14px">💰 自訂電價設定</h3>
+      <div id="rateRows" style="margin-top:8px"></div>
+      <div class="actions"><button class="btn primary" onclick="applyRates()">✅ 套用電價設定</button><button class="btn ghost" onclick="resetRates()">↺ 恢復預設電價</button></div>
+      <div class="hint" id="rateHint" style="margin-bottom:6px"></div>
+      <div class="kpis" id="energyKpis"></div>
+      <div class="chartGrid">
+        <div class="chartbox"><h4>各條件平均耗電（kWh/批次）</h4><canvas id="energyCondChart"></canvas></div>
+        <div class="chartbox"><h4>用電時段占比（依電費NT$）</h4><canvas id="energyPeriodChart"></canvas></div>
+        <div class="chartbox wide"><h4>每日耗電量與電費趨勢</h4><canvas id="energyDailyChart"></canvas></div>
+        <div class="chartbox wide"><h4>各人員耗電與電費比較</h4><canvas id="energyStaffChart"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>✏️ 自訂／編輯模擬kWh數值</h3>
+      <div class="filters">
+        <select id="bulkCondSelect"></select>
+        <input type="number" step="0.01" min="0" id="bulkKwhInput" placeholder="批量設定kWh" style="width:140px">
+        <button class="btn" onclick="applyBulkKwh()">依條件批量套用</button>
+      </div>
+      <div class="actions"><button class="btn ghost" onclick="toggleKwhEditTable()">📝 展開／收合 逐筆編輯表格</button><button class="btn primary" onclick="saveAllKwhEdits()">💾 儲存全部變更</button></div>
+      <div class="tablewrap" id="kwhEditWrap" style="display:none;margin-top:10px">
+        <table><thead><tr><th>編號</th><th>日期時間</th><th>條件</th><th>人員</th><th>時段</th><th>kWh(可編輯)</th></tr></thead><tbody id="kwhEditBody"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="tabcontent" id="meter">
+    <div class="panel">
+      <h2>📟 電表抄表紀錄</h2>
+      <div class="hint">此設備共有兩顆獨立電表：<b>熱媒油系統</b>與<b>壓機系統</b>，可分別抄錄各自的累積讀值。資料保存在本瀏覽器（localStorage）。</div>
+      <div class="presetRow">選擇要抄表的電表：<button onclick="setMeterName('熱媒油系統')" class="meterQuickBtn" data-name="熱媒油系統">🛢️ 熱媒油系統</button><button onclick="setMeterName('壓機系統')" class="meterQuickBtn" data-name="壓機系統">🗜️ 壓機系統</button></div>
+      <div class="meterForm">
+        <input type="text" id="meterName" placeholder="電表名稱（點上方快速選擇，或自行輸入其他電表）">
+        <input type="datetime-local" id="meterDatetime">
+        <input type="number" step="0.01" id="meterReading" placeholder="電表累積讀值(kWh)">
+        <input type="text" id="meterNote" placeholder="備註（選填）">
+      </div>
+      <div class="actions"><button class="btn primary" onclick="addMeterReading()">➕ 新增抄表紀錄</button></div>
+
+      <h3 style="margin-top:16px">📋 抄表紀錄清單</h3>
+      <div class="presetRow" id="meterViewFilterRow"></div>
+      <div class="filters">
+        <input type="text" id="meterSearchInput" placeholder="搜尋電表名稱、備註…" oninput="onMeterSearchInput()">
+        <button class="btn danger2" onclick="deleteSelectedMeterReadings()">🗑 刪除已選取</button>
+      </div>
+      <div class="hint" id="meterSelCountHint"></div>
+      <div class="tablewrap" style="margin-top:6px">
+        <table><thead><tr>
+          <th><input type="checkbox" id="meterSelectAllChk" onchange="toggleMeterSelectAll(this.checked)"></th>
+          <th class="sortable" onclick="sortMeterTable('datetime')" id="thDatetime">抄表時間</th>
+          <th class="sortable" onclick="sortMeterTable('name')" id="thName">電表</th>
+          <th class="sortable" onclick="sortMeterTable('reading')" id="thReading">累積讀值(kWh)</th>
+          <th>備註</th><th>操作</th>
+        </tr></thead><tbody id="meterTableBody"></tbody></table>
+      </div>
+
+      <h3 style="margin-top:16px">📊 區間耗電量估算</h3>
+      <div class="hint" id="meterDeltaHint"></div>
+      <div id="meterDeltaBox" style="margin-top:10px"></div>
+
+      <h3 style="margin-top:16px">🖼️ 電表資訊圖表</h3>
+      <div class="hint">可切換單獨查看某電表，或一起查看兩顆電表的比較。</div>
+      <div class="actions"><button class="btn primary" onclick="renderMeterCharts()">🔄 產生電表資訊圖表</button></div>
+      <div class="chartGrid" id="meterCharts" style="margin-top:10px"></div>
+    </div>
+  </section>
+</main>
+
+<div class="drawerBack" id="drawerBack" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer"><button class="drawerClose" onclick="closeDrawer()">×</button><h2 id="drawerTitle">下鑽明細</h2><div class="hint" id="drawerContext"></div><div id="drawerSummary" class="summaryGrid"></div><div class="actions"><button class="btn primary" onclick="drillRecordsFromDrawer()">查看完整記錄清單</button></div><div class="drawerList" id="drawerList"></div></aside>
+<div class="modalBg" id="modalBg" onclick="if(event.target.id==='modalBg')closeModal()"><div class="modal"><button class="drawerClose" onclick="closeModal()">×</button><h3>壓合履歷詳情</h3><dl id="modalContent"></dl></div></div>
+<div id="toast" class="toast"></div>
+<script>
+const RECORDS=[{"id": 1, "time": "2026-08-01 12:35:53", "cond": "cable280-P10", "staff": "FPC", "kwh": 4.09, "idle_kwh": 0.7, "period": "離峰"}, {"id": 2, "time": "2026-08-01 16:49:17", "cond": "cable280-P10", "staff": "FPC", "kwh": 5.07, "idle_kwh": 0.67, "period": "尖峰"}, {"id": 3, "time": "2026-08-03 08:41:38", "cond": "cable280-P10", "staff": "FPC", "kwh": 5.0, "idle_kwh": 0.43, "period": "半尖峰"}, {"id": 4, "time": "2026-08-03 13:57:08", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 4.21, "idle_kwh": 0.39, "period": "尖峰"}, {"id": 5, "time": "2026-08-03 20:52:21", "cond": "cable280-P10", "staff": "FPC", "kwh": 5.81, "idle_kwh": 0.57, "period": "半尖峰"}, {"id": 6, "time": "2026-08-04 02:53:39", "cond": "cable280-P10", "staff": "王冠智", "kwh": 5.3, "idle_kwh": 1.13, "period": "離峰"}, {"id": 7, "time": "2026-08-04 13:27:25", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.62, "idle_kwh": 1.22, "period": "尖峰"}, {"id": 8, "time": "2026-08-04 18:50:27", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.02, "idle_kwh": 0.85, "period": "半尖峰"}, {"id": 9, "time": "2026-08-05 03:28:10", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 4.77, "idle_kwh": 0.59, "period": "離峰"}, {"id": 10, "time": "2026-08-05 09:38:03", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.96, "idle_kwh": 0.8, "period": "半尖峰"}, {"id": 11, "time": "2026-08-05 14:20:39", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.55, "idle_kwh": 0.87, "period": "尖峰"}, {"id": 12, "time": "2026-08-05 19:32:58", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.6, "idle_kwh": 0.5, "period": "半尖峰"}, {"id": 13, "time": "2026-08-06 09:54:57", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.71, "idle_kwh": 0.71, "period": "半尖峰"}, {"id": 14, "time": "2026-08-06 14:52:08", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.79, "idle_kwh": 0.71, "period": "尖峰"}, {"id": 15, "time": "2026-08-06 19:23:42", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 6.54, "idle_kwh": 0.75, "period": "半尖峰"}, {"id": 16, "time": "2026-08-07 04:10:44", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 6.01, "idle_kwh": 1.22, "period": "離峰"}, {"id": 17, "time": "2026-08-07 11:06:56", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.29, "idle_kwh": 1.15, "period": "尖峰"}, {"id": 18, "time": "2026-08-07 15:40:22", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.69, "idle_kwh": 1.06, "period": "尖峰"}, {"id": 19, "time": "2026-08-07 19:58:25", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.9, "idle_kwh": 0.5, "period": "半尖峰"}, {"id": 20, "time": "2026-08-10 10:40:31", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 6.13, "idle_kwh": 0.98, "period": "尖峰"}, {"id": 21, "time": "2026-08-10 14:01:15", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.37, "idle_kwh": 0.95, "period": "尖峰"}, {"id": 22, "time": "2026-08-10 20:14:52", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 6.18, "idle_kwh": 0.89, "period": "半尖峰"}, {"id": 23, "time": "2026-08-11 05:56:08", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.28, "idle_kwh": 1.07, "period": "離峰"}, {"id": 24, "time": "2026-08-11 15:10:44", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.6, "idle_kwh": 0.82, "period": "尖峰"}, {"id": 25, "time": "2026-08-11 19:05:27", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.43, "idle_kwh": 1.45, "period": "半尖峰"}, {"id": 26, "time": "2026-08-12 11:11:55", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 4.55, "idle_kwh": 0.79, "period": "尖峰"}, {"id": 27, "time": "2026-08-12 15:22:26", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.82, "idle_kwh": 0.6, "period": "尖峰"}, {"id": 28, "time": "2026-08-12 18:52:06", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 4.18, "idle_kwh": 0.78, "period": "半尖峰"}, {"id": 29, "time": "2026-08-12 23:51:32", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 5.17, "idle_kwh": 0.7, "period": "離峰"}, {"id": 30, "time": "2026-08-13 14:14:11", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 3.8, "idle_kwh": 0.54, "period": "尖峰"}, {"id": 31, "time": "2026-08-14 09:04:52", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.1, "idle_kwh": 1.38, "period": "半尖峰"}, {"id": 32, "time": "2026-08-14 14:33:14", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.26, "idle_kwh": 0.73, "period": "尖峰"}, {"id": 33, "time": "2026-08-17 10:09:36", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.1, "idle_kwh": 1.52, "period": "尖峰"}, {"id": 34, "time": "2026-08-17 16:58:01", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.95, "idle_kwh": 0.56, "period": "尖峰"}, {"id": 35, "time": "2026-08-18 09:34:18", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.89, "idle_kwh": 0.96, "period": "半尖峰"}, {"id": 36, "time": "2026-08-18 13:24:26", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.43, "idle_kwh": 0.61, "period": "尖峰"}, {"id": 37, "time": "2026-08-18 17:16:26", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 6.14, "idle_kwh": 1.31, "period": "半尖峰"}, {"id": 38, "time": "2026-08-19 00:09:35", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 5.98, "idle_kwh": 1.0, "period": "離峰"}, {"id": 39, "time": "2026-08-19 11:25:19", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 4.17, "idle_kwh": 0.86, "period": "尖峰"}, {"id": 40, "time": "2026-08-19 15:19:31", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 7.07, "idle_kwh": 1.36, "period": "尖峰"}, {"id": 41, "time": "2026-08-19 19:12:50", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 4.96, "idle_kwh": 0.47, "period": "半尖峰"}, {"id": 42, "time": "2026-08-19 23:35:05", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 4.06, "idle_kwh": 0.36, "period": "離峰"}, {"id": 43, "time": "2026-08-20 02:57:51", "cond": "FEP Peel test1", "staff": "王冠智", "kwh": 4.46, "idle_kwh": 0.57, "period": "離峰"}, {"id": 44, "time": "2026-08-20 08:24:14", "cond": "FEP Peel test2", "staff": "林聖欽", "kwh": 2.94, "idle_kwh": 0.3, "period": "半尖峰"}, {"id": 45, "time": "2026-08-20 11:26:57", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 4.87, "idle_kwh": 0.41, "period": "尖峰"}, {"id": 46, "time": "2026-08-20 18:34:13", "cond": "FEP Peel test2", "staff": "林聖欽", "kwh": 4.19, "idle_kwh": 0.42, "period": "半尖峰"}, {"id": 47, "time": "2026-08-21 09:29:34", "cond": "Warmup 30", "staff": "林聖欽", "kwh": 4.34, "idle_kwh": 0.57, "period": "半尖峰"}, {"id": 48, "time": "2026-08-21 10:42:42", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 5.7, "idle_kwh": 1.25, "period": "尖峰"}, {"id": 49, "time": "2026-08-21 13:56:29", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 4.8, "idle_kwh": 0.44, "period": "尖峰"}, {"id": 50, "time": "2026-08-21 18:36:37", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 4.45, "idle_kwh": 0.52, "period": "半尖峰"}, {"id": 51, "time": "2026-08-21 23:34:32", "cond": "cable280-P5+10min", "staff": "王冠智", "kwh": 4.33, "idle_kwh": 0.36, "period": "離峰"}, {"id": 52, "time": "2026-08-22 14:32:25", "cond": "鍋爐降溫_活泉20260411", "staff": "FPC", "kwh": 7.45, "idle_kwh": 0.75, "period": "尖峰"}, {"id": 53, "time": "2026-08-25 14:16:11", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 4.5, "idle_kwh": 0.69, "period": "尖峰"}, {"id": 54, "time": "2026-08-25 17:36:05", "cond": "cable1", "staff": "林聖欽", "kwh": 8.82, "idle_kwh": 1.57, "period": "半尖峰"}, {"id": 55, "time": "2026-08-26 00:46:53", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 5.53, "idle_kwh": 0.57, "period": "離峰"}, {"id": 56, "time": "2026-08-26 08:29:41", "cond": "鍋爐降溫_活泉20260411", "staff": "FPC", "kwh": 7.46, "idle_kwh": 1.41, "period": "半尖峰"}, {"id": 57, "time": "2026-08-26 14:30:31", "cond": "cable280-P10+10min", "staff": "FPC", "kwh": 5.09, "idle_kwh": 0.99, "period": "尖峰"}, {"id": 58, "time": "2026-08-26 19:10:07", "cond": "cable280-P10+10min", "staff": "FPC", "kwh": 7.0, "idle_kwh": 1.35, "period": "半尖峰"}, {"id": 59, "time": "2026-08-27 11:56:49", "cond": "cable280-P10+10min", "staff": "FPC", "kwh": 6.66, "idle_kwh": 0.74, "period": "尖峰"}, {"id": 60, "time": "2026-08-28 08:57:42", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 4.85, "idle_kwh": 0.41, "period": "半尖峰"}, {"id": 61, "time": "2026-08-28 13:38:09", "cond": "SIG_P30P5-NOMO", "staff": "林聖欽", "kwh": 3.43, "idle_kwh": 0.4, "period": "尖峰"}, {"id": 62, "time": "2026-08-28 17:04:29", "cond": "SIG_120c", "staff": "林聖欽", "kwh": 7.85, "idle_kwh": 1.12, "period": "半尖峰"}, {"id": 63, "time": "2026-08-28 23:45:15", "cond": "cable280-P5+10min", "staff": "王冠智", "kwh": 6.54, "idle_kwh": 1.4, "period": "離峰"}, {"id": 64, "time": "2026-08-29 10:17:31", "cond": "Cable380-60", "staff": "FPC", "kwh": 4.4, "idle_kwh": 0.49, "period": "尖峰"}, {"id": 65, "time": "2026-08-31 11:36:44", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 4.44, "idle_kwh": 0.74, "period": "尖峰"}, {"id": 66, "time": "2026-09-01 00:36:08", "cond": "cable280-P5+10min", "staff": "林聖欽", "kwh": 6.15, "idle_kwh": 0.9, "period": "離峰"}, {"id": 67, "time": "2026-09-01 11:52:23", "cond": "SIG_120c", "staff": "林聖欽", "kwh": 7.34, "idle_kwh": 0.67, "period": "尖峰"}, {"id": 68, "time": "2026-09-01 15:10:12", "cond": "FEP Peel test3", "staff": "林聖欽", "kwh": 7.56, "idle_kwh": 1.43, "period": "尖峰"}, {"id": 69, "time": "2026-09-02 01:50:23", "cond": "cable280-P5+10min", "staff": "王冠智", "kwh": 5.18, "idle_kwh": 0.54, "period": "離峰"}, {"id": 70, "time": "2026-09-02 11:13:47", "cond": "SIG_120c", "staff": "林聖欽", "kwh": 5.82, "idle_kwh": 1.12, "period": "尖峰"}, {"id": 71, "time": "2026-09-02 23:45:50", "cond": "cable280-P5+10min", "staff": "王冠智", "kwh": 4.96, "idle_kwh": 0.68, "period": "離峰"}, {"id": 72, "time": "2026-09-04 13:41:39", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 5.39, "idle_kwh": 0.56, "period": "尖峰"}, {"id": 73, "time": "2026-09-04 17:30:01", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 4.43, "idle_kwh": 0.92, "period": "半尖峰"}, {"id": 74, "time": "2026-09-05 03:11:16", "cond": "cable280-P5+10min", "staff": "王冠智", "kwh": 4.29, "idle_kwh": 0.84, "period": "離峰"}, {"id": 75, "time": "2026-09-05 10:38:35", "cond": "鍋爐降溫_活泉20260411", "staff": "清舟", "kwh": 7.93, "idle_kwh": 1.02, "period": "尖峰"}, {"id": 76, "time": "2026-09-05 16:19:12", "cond": "鍋爐降溫_活泉20260411", "staff": "清舟", "kwh": 5.96, "idle_kwh": 0.49, "period": "尖峰"}, {"id": 77, "time": "2026-09-07 11:18:10", "cond": "Warmup 30", "staff": "FPC", "kwh": 5.07, "idle_kwh": 0.78, "period": "尖峰"}, {"id": 78, "time": "2026-09-07 13:24:21", "cond": "Warmup 30", "staff": "董奕", "kwh": 4.55, "idle_kwh": 0.92, "period": "尖峰"}, {"id": 79, "time": "2026-09-07 18:53:00", "cond": "BU-A27F-180", "staff": "董奕", "kwh": 5.85, "idle_kwh": 0.67, "period": "半尖峰"}, {"id": 80, "time": "2026-09-08 16:52:53", "cond": "BU-A27F-30P", "staff": "林聖欽", "kwh": 4.2, "idle_kwh": 0.68, "period": "尖峰"}, {"id": 81, "time": "2026-09-09 04:41:21", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 5.69, "idle_kwh": 0.56, "period": "離峰"}, {"id": 82, "time": "2026-09-09 15:18:33", "cond": "cable280-P10+10min", "staff": "林聖欽", "kwh": 5.49, "idle_kwh": 0.79, "period": "尖峰"}, {"id": 83, "time": "2026-09-10 02:55:51", "cond": "cable280-P10+10min", "staff": "王冠智", "kwh": 7.16, "idle_kwh": 0.99, "period": "離峰"}, {"id": 84, "time": "2026-09-10 09:20:49", "cond": "FEP Peel test1", "staff": "林聖欽", "kwh": 5.4, "idle_kwh": 0.83, "period": "半尖峰"}, {"id": 85, "time": "2026-09-11 02:15:18", "cond": "cable280-P8", "staff": "林聖欽", "kwh": 4.32, "idle_kwh": 0.61, "period": "離峰"}, {"id": 86, "time": "2026-09-11 11:34:03", "cond": "FEP For ALPS", "staff": "林聖欽", "kwh": 3.32, "idle_kwh": 0.64, "period": "尖峰"}, {"id": 87, "time": "2026-09-12 16:22:54", "cond": "鍋爐降溫_活泉20260411", "staff": "FPC", "kwh": 7.24, "idle_kwh": 1.31, "period": "尖峰"}, {"id": 88, "time": "2026-09-15 09:24:23", "cond": "SIG-50P", "staff": "林聖欽", "kwh": 5.34, "idle_kwh": 0.81, "period": "半尖峰"}, {"id": 89, "time": "2026-09-15 13:41:50", "cond": "FEP for HY", "staff": "林聖欽", "kwh": 6.7, "idle_kwh": 0.64, "period": "尖峰"}, {"id": 90, "time": "2026-09-15 17:05:12", "cond": "cable280-P8", "staff": "林聖欽", "kwh": 4.99, "idle_kwh": 0.59, "period": "半尖峰"}];
+RECORDS.forEach(r=>{const [d,t]=r.time.split(' ');r.date=d;r.timeOnly=t;r.month=d.slice(0,7);r.day=+d.slice(8,10)});
+const months=[...new Set(RECORDS.map(r=>r.month))].sort();
+const minDate=RECORDS[0].date, maxDate=RECORDS[RECORDS.length-1].date;
+const colors=['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
+const allConds=[...new Set(RECORDS.map(r=>r.cond))].sort();
+const allStaff=[...new Set(RECORDS.map(r=>r.staff))].sort();
+let shiftConfig=[{name:'白班',start:'08:00',end:'16:00'},{name:'中班',start:'16:00',end:'24:00'},{name:'夜班',start:'00:00',end:'08:00'}];
+const DEFAULT_RATES={"尖峰":6.5,"半尖峰":4.2,"離峰":2.3};
+let rates={...DEFAULT_RATES};
+function recomputeCost(){RECORDS.forEach(r=>{r.rate=rates[r.period]!==undefined?rates[r.period]:0;r.cost=+(r.kwh*r.rate).toFixed(1);});}
+recomputeCost();
+let charts={},monthMode='overlay',selectedMonths=new Set(months),customSet=new Set();
+let groupView=false, openGroups=new Set();
+let condMultiA=new Set(), condMultiI=new Set();
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmtDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function dateArray(a,b){let o=[],d=new Date(a+'T00:00:00'),e=new Date(b+'T00:00:00');while(d<=e){o.push(fmtDate(d));d.setDate(d.getDate()+1)}return o}
+function toMin(hhmm){const[h,m]=hhmm.split(':').map(Number);return h*60+m}
+function computeShift(timeOnly){
+  const t=toMin(timeOnly.slice(0,5));
+  for(const s of shiftConfig){let st=toMin(s.start),en=toMin(s.end);if(en===0)en=1440;if(st<=en){if(t>=st&&t<en)return s.name;}else{if(t>=st||t<en)return s.name;}}
+  return shiftConfig.length?shiftConfig[0].name:'未分類';
+}
+function recomputeShifts(){RECORDS.forEach(r=>r.shift=computeShift(r.timeOnly))}
+recomputeShifts();
+
+let F={q:'', conds:new Set(), condsExclude:false, staffs:new Set(), shifts:new Set(), month:'', date:'', from:'', to:'', anomaly:false};
+let history=[cloneF()], histIdx=0;
+function cloneF(){return {q:F.q, conds:new Set(F.conds), condsExclude:F.condsExclude, staffs:new Set(F.staffs), shifts:new Set(F.shifts), month:F.month, date:F.date, from:F.from, to:F.to, anomaly:F.anomaly}}
+function cloneStateFrom(s){return {q:s.q, conds:new Set(s.conds), condsExclude:s.condsExclude, staffs:new Set(s.staffs), shifts:new Set(s.shifts), month:s.month, date:s.date, from:s.from, to:s.to, anomaly:s.anomaly}}
+function pushHistory(){history=history.slice(0,histIdx+1);history.push(cloneF());histIdx=history.length-1;updateHistoryButtons()}
+function updateHistoryButtons(){backBtn.disabled=histIdx<=0;fwdBtn.disabled=histIdx>=history.length-1}
+function goBack(){if(histIdx<=0)return;histIdx--;F=cloneStateFrom(history[histIdx]);syncControls();refreshAll();showToast('已回到上一步')}
+function goForward(){if(histIdx>=history.length-1)return;histIdx++;F=cloneStateFrom(history[histIdx]);syncControls();refreshAll();showToast('已前進到下一步')}
+
+let anomalyRecordsCache=[];
+function filterRecords(){
+  if(F.anomaly) return anomalyRecordsCache;
+  return RECORDS.filter(r=>{
+    if(F.q && !`${r.time} ${r.cond} ${r.staff} ${r.shift}`.toLowerCase().includes(F.q)) return false;
+    if(F.conds.size){ const inSet=F.conds.has(r.cond); if(F.condsExclude? inSet : !inSet) return false; }
+    if(F.staffs.size && !F.staffs.has(r.staff)) return false;
+    if(F.shifts.size && !F.shifts.has(r.shift)) return false;
+    if(F.month && r.month!==F.month) return false;
+    if(F.date && r.date!==F.date) return false;
+    if(!F.date){ if(F.from && r.date<F.from) return false; if(F.to && r.date>F.to) return false; }
+    return true;
+  });
+}
+let filtered=[...RECORDS];
+function refreshAll(){filtered=filterRecords();renderTable();renderBreadcrumb();renderMSPanels();if(groupView)renderGroupedList();if(filteredChartsPanel.style.display!=='none')renderFilteredCharts()}
+function onSearchInput(){F.q=search.value.trim().toLowerCase();pushHistory();refreshAll()}
+function onMonthSelect(){F.month=fMonth.value;F.date='';pushHistory();refreshAll()}
+function onDateRangeChange(){F.from=fFrom.value;F.to=fTo.value;F.date='';pushHistory();refreshAll()}
+function resetFilters(){search.value='';fMonth.value='';fFrom.value='';fTo.value='';F={q:'',conds:new Set(),condsExclude:false,staffs:new Set(),shifts:new Set(),month:'',date:'',from:'',to:'',anomaly:false};pushHistory();refreshAll()}
+function clearAll(){resetFilters();closeDrawer()}
+function drillTo(patch,source,open=true){
+  Object.assign(F,patch);
+  if(patch.date!==undefined){F.month='';}
+  F.anomaly=false;
+  pushHistory();syncControls();refreshAll();
+  if(open)openDrawer(filtered,source);
+  activate('records');
+}
+function removeCrumb(k){
+  if(k==='conds'){F.conds=new Set();F.condsExclude=false;}
+  else if(k==='staffs'){F.staffs=new Set();}
+  else if(k==='shifts'){F.shifts=new Set();}
+  else if(k==='month'){F.month='';}
+  else if(k==='date'){F.date='';}
+  else if(k==='q'){F.q='';search.value='';}
+  else if(k==='anomaly'){F.anomaly=false;}
+  pushHistory();syncControls();refreshAll();
+}
+function syncControls(){search.value=F.q||'';fMonth.value=F.month||'';fFrom.value=F.from||'';fTo.value=F.to||''}
+function renderBreadcrumb(){
+  const a=[];
+  if(F.q)a.push(['q','搜尋：'+F.q]);
+  if(F.conds.size)a.push(['conds', (F.condsExclude?`排除條件（${F.conds.size}項）：`:`條件（${F.conds.size}項）：`)+[...F.conds].join('、')]);
+  if(F.staffs.size)a.push(['staffs',`人員（${F.staffs.size}項）：`+[...F.staffs].join('、')]);
+  if(F.shifts.size)a.push(['shifts',`班別（${F.shifts.size}項）：`+[...F.shifts].join('、')]);
+  if(F.month)a.push(['month','月份：'+monthLabel(F.month)]);
+  if(F.date)a.push(['date','日期：'+F.date]);
+  if(F.anomaly)a.push(['anomaly','⚠ 能耗異常批次']);
+  breadcrumbs.classList.toggle('show', a.length>0 || history.length>1);
+  crumbs.innerHTML=a.map(([k,v])=>`<span class="crumb">${esc(v)} <button onclick="removeCrumb('${k}')">×</button></span>`).join('');
+  updateHistoryButtons();
+}
+function toggleMS(id){const p=document.getElementById(id+'Panel');const isShow=p.classList.contains('show');document.querySelectorAll('.msPanel').forEach(x=>x.classList.remove('show'));if(!isShow)p.classList.add('show');}
+document.addEventListener('click',e=>{if(!e.target.closest('.msWrap'))document.querySelectorAll('.msPanel').forEach(x=>x.classList.remove('show'));});
+function renderMSPanels(){
+  msCondCount.textContent=F.conds.size?(F.condsExclude?'排除'+F.conds.size:F.conds.size):'';
+  msStaffCount.textContent=F.staffs.size||'';
+  msShiftCount.textContent=F.shifts.size||'';
+  msCondPanel.innerHTML=`<div class="excludeToggle"><input type="checkbox" id="condExcludeChk" ${F.condsExclude?'checked':''} onchange="toggleCondExclude(this.checked)"><label for="condExcludeChk">排除模式</label></div>`+
+    `<div class="msActions"><button onclick="msSelectAll('cond',true)">全選</button><button onclick="msSelectAll('cond',false)">清除</button></div>`+
+    allConds.map(c=>`<label><input type="checkbox" ${F.conds.has(c)?'checked':''} onchange="msToggle('cond','${c.replace(/'/g,"\\'")}',this.checked)">${esc(c)}（${RECORDS.filter(r=>r.cond===c).length}）</label>`).join('');
+  msStaffPanel.innerHTML=`<div class="msActions"><button onclick="msSelectAll('staff',true)">全選</button><button onclick="msSelectAll('staff',false)">清除</button></div>`+
+    allStaff.map(s=>`<label><input type="checkbox" ${F.staffs.has(s)?'checked':''} onchange="msToggle('staff','${s.replace(/'/g,"\\'")}',this.checked)">${esc(s)}（${RECORDS.filter(r=>r.staff===s).length}）</label>`).join('');
+  const shiftNames=shiftConfig.map(s=>s.name);
+  msShiftPanel.innerHTML=`<div class="msActions"><button onclick="msSelectAll('shift',true)">全選</button><button onclick="msSelectAll('shift',false)">清除</button></div>`+
+    shiftNames.map(s=>`<label><input type="checkbox" ${F.shifts.has(s)?'checked':''} onchange="msToggle('shift','${s}',this.checked)">${esc(s)}（${RECORDS.filter(r=>r.shift===s).length}）</label>`).join('');
+}
+function toggleCondExclude(v){F.condsExclude=v;pushHistory();refreshAll()}
+function msToggle(kind,val,checked){const map={cond:F.conds,staff:F.staffs,shift:F.shifts};const set=map[kind];checked?set.add(val):set.delete(val);pushHistory();refreshAll();}
+function msSelectAll(kind,on){const list={cond:allConds,staff:allStaff,shift:shiftConfig.map(s=>s.name)}[kind];const map={cond:'conds',staff:'staffs',shift:'shifts'}[kind];F[map]=on?new Set(list):new Set();pushHistory();refreshAll();}
+
+function tagHtml(r){const isUnit=r.staff==='FPC';return `<span class="tag shift">${esc(r.shift)}</span> <span class="tag">${esc(r.cond)}</span> <span class="tag ${isUnit?'unit':'staff'}">${isUnit?'🏭':'👤'} ${esc(r.staff)}</span>`;}
+function renderTable(){
+  recordCount.textContent=`目前顯示：${filtered.length} 筆 / 全部 ${RECORDS.length} 筆`;
+  if(!filtered.length){tableBody.innerHTML='';cardList.innerHTML='<div class="empty">找不到符合條件的記錄</div>';return}
+  tableBody.innerHTML=filtered.map(r=>`<tr data-id="${r.id}" onclick="showRecord(${r.id})"><td>${r.id}</td><td>${r.time}</td><td><span class="tag shift">${esc(r.shift)}</span></td><td><span class="tag">${esc(r.cond)}</span></td><td><span class="tag ${r.staff==='FPC'?'unit':'staff'}">${r.staff==='FPC'?'🏭':'👤'} ${esc(r.staff)}</span></td></tr>`).join('');
+  cardList.innerHTML=filtered.map(r=>`<div class="recordCard" onclick="showRecord(${r.id})"><strong>${r.time}</strong>${tagHtml(r)}</div>`).join('');
+}
+function toggleGroupView(){groupView=!groupView;groupToggleBtn.classList.toggle('active',groupView);normalView.style.display=groupView?'none':'block';groupedView.style.display=groupView?'block':'none';if(groupView)renderGroupedList();}
+function renderGroupedList(){
+  const groups={};filtered.forEach(r=>{(groups[r.staff]=groups[r.staff]||[]).push(r)});
+  const names=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length);
+  if(!names.length){groupedView.innerHTML='<div class="empty">找不到符合條件的記錄</div>';return}
+  groupedView.innerHTML=names.map(name=>{
+    const list=groups[name];const isUnit=name==='FPC';const open=openGroups.has(name);
+    return `<div class="groupBlock"><div class="groupHeader" onclick="toggleGroup('${name.replace(/'/g,"\\'")}')"><span>${isUnit?'🏭':'👤'} ${esc(name)}</span><span class="cnt">${list.length} 筆</span></div>
+    <div class="groupBody ${open?'show':''}" id="grp_${name}">${list.map(r=>`<div class="groupRow" onclick="showRecord(${r.id})"><span>${r.time}</span><span>${tagHtml(r)}</span></div>`).join('')}</div></div>`;
+  }).join('');
+}
+function toggleGroup(name){openGroups.has(name)?openGroups.delete(name):openGroups.add(name);document.getElementById('grp_'+name).classList.toggle('show');}
+
+function openDrawer(recordsArr,context){
+  drawer.querySelector('#drawerTitle').textContent=context||'下鑽明細';
+  drawerContext.textContent=`符合資料：${recordsArr.length} 筆。`;
+  let days=new Set(recordsArr.map(r=>r.date)),conds=new Set(recordsArr.map(r=>r.cond)),staff=new Set(recordsArr.map(r=>r.staff));
+  drawerSummary.innerHTML=[['總筆數',recordsArr.length],['日期數',days.size],['條件種類',conds.size],['人員／單位',staff.size]].map(x=>`<div class="summary"><div class="v">${x[1]}</div><div class="l">${x[0]}</div></div>`).join('');
+  drawerList.innerHTML=recordsArr.slice(0,20).map(r=>`<div class="drawerRow" onclick="showRecord(${r.id})"><b>${r.time}</b><br>${tagHtml(r)}</div>`).join('')+(recordsArr.length>20?'<div class="hint">僅顯示前20筆。</div>':'');
+  drawer.classList.add('show');drawerBack.classList.add('show');
+}
+function closeDrawer(){drawer.classList.remove('show');drawerBack.classList.remove('show')}
+function drillRecordsFromDrawer(){closeDrawer();activate('records');window.scrollTo({top:0,behavior:'smooth'})}
+function showRecord(id){const r=RECORDS.find(x=>x.id===id);modalContent.innerHTML=`<dt>編號</dt><dd>#${r.id}</dd><dt>日期</dt><dd>${r.date}</dd><dt>時間</dt><dd>${r.timeOnly}</dd><dt>班別</dt><dd>${esc(r.shift)}</dd><dt>壓合條件</dt><dd>${esc(r.cond)}</dd><dt>人員／單位</dt><dd>${esc(r.staff)}</dd><dt>耗電量(kWh)</dt><dd>${r.kwh}</dd><dt>電費(NT$)</dt><dd>${r.cost}（${r.period}，NT$${r.rate}/kWh）</dd>`;modalBg.classList.add('show')}
+function closeModal(){modalBg.classList.remove('show')}
+
+function theme(){return document.body.dataset.theme==='dark'?{text:'#f3f5f9',grid:'#2a3348'}:{text:'#192234',grid:'#d8dfeb'}}
+function setTheme(v){document.body.dataset.theme=v;darkBtn.classList.toggle('active',v==='dark');lightBtn.classList.toggle('active',v==='light');localStorage.setItem('heatA_theme',v);renderCurrentTab();}
+setTheme(localStorage.getItem('heatA_theme')||'dark');
+function showToast(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
+function activate(name){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  document.querySelectorAll('.tabcontent').forEach(x=>x.classList.toggle('active',x.id===name));
+  renderCurrentTab();
+}
+function renderCurrentTab(){
+  const name=document.querySelector('.tab.active').dataset.tab;
+  if(name==='analysis')renderAnalysis();
+  if(name==='infographic'){renderInfo();renderMonthPicker();renderMonthCharts();initCustom();renderCustomChart();renderPresetRow();}
+  if(name==='shiftsettings')renderShiftRows();
+  if(name==='condopt')renderCondPanel();
+  if(name==='staffcap')renderStaffPanel();
+  if(name==='events')renderEventsPanel();
+  if(name==='energy'){renderRateRows();renderEnergyPanel();renderBulkCondSelect();renderKwhEditTable();}
+  if(name==='meter'){renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();}
+  if(filteredChartsPanel.style.display!=='none')renderFilteredCharts();
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>activate(b.dataset.tab));
+function monthLabel(m){let[y,mo]=m.split('-');return `${y}年${+mo}月`}
+function destroy(k){if(charts[k]){charts[k].destroy();delete charts[k]}}
+function chart(id,key,type,data,options={}){destroy(key);const tc=theme();Chart.defaults.color=tc.text;Chart.defaults.borderColor=tc.grid;const el=document.getElementById(id);if(!el)return null;charts[key]=new Chart(el,{type,data,options});return charts[key]}
+function countBy(arr,key,fn=x=>x){const o={};arr.forEach(r=>{let k=fn(r[key]);o[k]=(o[k]||0)+1});return o}
+function entries(o){return Object.entries(o).sort((a,b)=>b[1]-a[1])}
+
+function renderKPIs(){
+  const days=new Set(RECORDS.map(r=>r.date));
+  let html=[['總壓合筆數',RECORDS.length],['生產天數',days.size],['平均每日筆數',(RECORDS.length/days.size).toFixed(1)]];
+  months.forEach(m=>html.push([monthLabel(m)+(m===maxDate.slice(0,7)?'(至今)':''),RECORDS.filter(r=>r.month===m).length]));
+  html.push(['壓合條件種類',allConds.length],['人員／單位',allStaff.length]);
+  kpis.innerHTML=html.map(x=>`<div class="kpi"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+}
+function fillFilters(){months.forEach(m=>fMonth.insertAdjacentHTML('beforeend',`<option value="${m}">${monthLabel(m)}</option>`));crFrom.min=crTo.min=minDate;crFrom.max=crTo.max=maxDate;renderMSPanels();}
+
+let curY=+maxDate.slice(0,4),curM=+maxDate.slice(5,7)-1;
+function renderCalendar(){monthTitle.textContent=`${curY}年 ${curM+1}月`;const key=`${curY}-${String(curM+1).padStart(2,'0')}`,counts=countBy(RECORDS.filter(r=>r.month===key),'date');const mx=Math.max(1,...Object.values(counts));const first=new Date(curY,curM,1).getDay(),n=new Date(curY,curM+1,0).getDate();let h=['日','一','二','三','四','五','六'].map(x=>`<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:5px">${x}</div>`).join('');for(let i=0;i<first;i++)h+='<div></div>';for(let d=1;d<=n;d++){const dt=`${key}-${String(d).padStart(2,'0')}`,v=counts[dt]||0,op=v?0.18+0.65*v/mx:.02;h+=`<button onclick="drillTo({date:'${dt}',month:''},'日期下鑽：${dt}')" style="min-height:64px;border:1px solid var(--border);border-radius:8px;background:rgba(59,130,246,${op});color:var(--text);text-align:left;padding:7px"><small>${d}</small><b style="display:block;font-size:1.2rem;margin-top:5px">${v||'-'}</b></button>`}calendarGrid.innerHTML=h}
+function changeMonth(d){curM+=d;if(curM<0){curM=11;curY--}if(curM>11){curM=0;curY++}renderCalendar()}
+
+function segColors(entriesArr,selSet){return entriesArr.map((e,i)=> selSet.size===0||selSet.has(e[0]) ? colors[i%colors.length] : colors[i%colors.length]+'33')}
+function renderMultiRow(id,selSet,onApply,onClear){const el=document.getElementById(id);if(!el)return;if(!selSet.size){el.innerHTML='<span class="hint">點擊圖表區塊可多選條件進行比較</span>';return}el.innerHTML=`<span class="hint">已選 ${selSet.size} 項：</span>`+[...selSet].map(c=>`<span class="chip">${esc(c)}</span>`).join('')+`<button class="btn primary" onclick="${onApply}">套用比較</button><button class="btn" onclick="${onClear}">清除選取</button>`;}
+function toggleCondMultiA(c){condMultiA.has(c)?condMultiA.delete(c):condMultiA.add(c);renderAnalysis()}
+function applyCondMultiA(){if(!condMultiA.size)return;drillTo({conds:new Set(condMultiA),condsExclude:false},`條件比較（${condMultiA.size}項）`)}
+function clearCondMultiA(){condMultiA.clear();renderAnalysis()}
+function toggleCondMultiI(c){condMultiI.has(c)?condMultiI.delete(c):condMultiI.add(c);renderInfo()}
+function applyCondMultiI(){if(!condMultiI.size)return;drillTo({conds:new Set(condMultiI),condsExclude:false},`條件比較（${condMultiI.size}項）`)}
+function clearCondMultiI(){condMultiI.clear();renderInfo()}
+
+function renderAnalysis(){
+  analysisCharts.innerHTML='<div class="chartbox drillable"><h4>月度總量比較 ↗</h4><canvas id="aMonth"></canvas></div>'+
+    '<div class="chartbox drillable"><h4>壓合條件分布 ↗ 多選比較</h4><canvas id="aCond"></canvas><div class="multiRow" id="multiRowA"></div></div>'+
+    '<div class="chartbox drillable"><h4>班別產量比較 ↗</h4><canvas id="aShift"></canvas></div>'+
+    '<div class="chartbox drillable wide"><h4>每日產量趨勢 ↗</h4><canvas id="aDaily"></canvas></div>';
+  const tc=theme(),mc=months.map(m=>RECORDS.filter(r=>r.month===m).length);
+  chart('aMonth','aMonth','bar',{labels:months.map(monthLabel),datasets:[{data:mc,backgroundColor:colors.slice(0,months.length)}]},{plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)drillTo({month:months[el[0].index],date:''},'月度下鑽：'+monthLabel(months[el[0].index]))},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  const ce=entries(countBy(RECORDS,'cond'));
+  chart('aCond','aCond','doughnut',{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:segColors(ce,condMultiA)}]},{plugins:{legend:{position:'bottom'}},onClick:(e,el)=>{if(el.length)toggleCondMultiA(ce[el[0].index][0])}});
+  renderMultiRow('multiRowA',condMultiA,'applyCondMultiA()','clearCondMultiA()');
+  const se_=entries(countBy(RECORDS,'shift'));
+  chart('aShift','aShift','bar',{labels:se_.map(x=>x[0]),datasets:[{data:se_.map(x=>x[1]),backgroundColor:'#f59e0b'}]},{plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)drillTo({shifts:new Set([se_[el[0].index][0]])},'班別下鑽：'+se_[el[0].index][0])},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  const dc=Object.entries(countBy(RECORDS,'date')).sort();
+  chart('aDaily','aDaily','line',{labels:dc.map(x=>x[0]),datasets:[{data:dc.map(x=>x[1]),borderColor:'#3b82f6',backgroundColor:'#3b82f633',fill:true,tension:.3}]},{plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)drillTo({date:dc[el[0].index][0]},'日期下鑽：'+dc[el[0].index][0])},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}});
+}
+function renderInfo(){
+  infoCharts.innerHTML='<div class="chartbox drillable"><h4>壓合條件分布 ↗ 多選比較</h4><canvas id="iCond"></canvas><div class="multiRow" id="multiRowI"></div></div>'+
+    '<div class="chartbox drillable"><h4>人員／單位分布 ↗</h4><canvas id="iStaff"></canvas></div>'+
+    '<div class="chartbox drillable wide"><h4>每日產量趨勢 ↗</h4><canvas id="iDaily"></canvas></div>';
+  const tc=theme(),ce=entries(countBy(RECORDS,'cond')),se=entries(countBy(RECORDS,'staff')),dc=Object.entries(countBy(RECORDS,'date')).sort();
+  chart('iCond','iCond','pie',{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:segColors(ce,condMultiI)}]},{plugins:{legend:{position:'bottom'}},onClick:(e,el)=>{if(el.length)toggleCondMultiI(ce[el[0].index][0])}});
+  renderMultiRow('multiRowI',condMultiI,'applyCondMultiI()','clearCondMultiI()');
+  chart('iStaff','iStaff','doughnut',{labels:se.map(x=>x[0]),datasets:[{data:se.map(x=>x[1]),backgroundColor:colors}]},{plugins:{legend:{position:'bottom'}},onClick:(e,el)=>{if(el.length)drillTo({staffs:new Set([se[el[0].index][0]])},'人員下鑽：'+se[el[0].index][0])}});
+  chart('iDaily','iDaily','line',{labels:dc.map(x=>x[0]),datasets:[{data:dc.map(x=>x[1]),borderColor:'#22c55e',backgroundColor:'#22c55e33',fill:true,tension:.3}]},{plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)drillTo({date:dc[el[0].index][0]},'日期下鑽：'+dc[el[0].index][0])},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}});
+}
+function showAnomalyBatches(){
+  const sums={},counts={};RECORDS.forEach(r=>{sums[r.cond]=(sums[r.cond]||0)+r.kwh;counts[r.cond]=(counts[r.cond]||0)+1});
+  const avg={};Object.keys(sums).forEach(c=>avg[c]=sums[c]/counts[c]);
+  anomalyRecordsCache=RECORDS.filter(r=>r.kwh>avg[r.cond]*1.2);
+  F.anomaly=true;pushHistory();filtered=filterRecords();renderTable();renderBreadcrumb();
+  anomalyHint.textContent=`共找出 ${anomalyRecordsCache.length} 筆能耗異常批次。`;
+  openDrawer(filtered,'⚠ 能耗異常批次');activate('records');
+}
+function renderMonthPicker(){monthPicker.innerHTML=months.map((m,i)=>`<label class="chip"><input type="checkbox" ${selectedMonths.has(m)?'checked':''} onchange="toggleMonth('${m}',this.checked)"><span style="width:10px;height:10px;border-radius:50%;background:${colors[i]}"></span>${monthLabel(m)}</label>`).join('')}
+function toggleMonth(m,on){on?selectedMonths.add(m):selectedMonths.delete(m);renderMonthCharts()}
+function setMonthMode(m){monthMode=m;overlayBtn.classList.toggle('active',m==='overlay');separateBtn.classList.toggle('active',m==='separate');monthOverlay.style.display=m==='overlay'?'block':'none';monthSeparate.style.display=m==='separate'?'grid':'none';renderMonthCharts()}
+function monthSeries(m){const n=new Date(+m.slice(0,4),+m.slice(5,7),0).getDate(),last=m===maxDate.slice(0,7)?+maxDate.slice(8,10):n,c=countBy(RECORDS.filter(r=>r.month===m),'day',x=>x);return{labels:Array.from({length:last},(_,i)=>i+1+'日'),data:Array.from({length:last},(_,i)=>c[i+1]||0)}}
+function renderMonthCharts(){const ms=months.filter(m=>selectedMonths.has(m)),tc=theme();if(monthMode==='overlay'){const max=Math.max(1,...ms.map(m=>monthSeries(m).labels.length));chart('monthOverlayCanvas','monthOverlay','line',{labels:Array.from({length:max},(_,i)=>i+1+'日'),datasets:ms.map((m,i)=>{let s=monthSeries(m);return{label:monthLabel(m),data:[...s.data,...Array(max-s.data.length).fill(null)],borderColor:colors[months.indexOf(m)],backgroundColor:colors[months.indexOf(m)]+'33',tension:.3}})},{scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}})}else{Object.keys(charts).filter(k=>k.startsWith('sep')).forEach(destroy);monthSeparate.innerHTML=ms.map(m=>`<div class="chartbox"><h4>${monthLabel(m)}每日產量</h4><canvas id="sep_${m}"></canvas></div>`).join('');ms.forEach(m=>{let s=monthSeries(m);chart(`sep_${m}`,`sep${m}`,'line',{labels:s.labels,datasets:[{data:s.data,borderColor:colors[months.indexOf(m)],backgroundColor:colors[months.indexOf(m)]+'33',fill:true,tension:.3}]},{plugins:{legend:{display:false}},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}})})}}
+function renderPresetRow(){const presets=[7,10,14,21,30,31];presetRow.innerHTML=presets.map(n=>`<button onclick="applyPresetDays(${n})">最近${n}天</button>`).join('')+`<button onclick="applyPresetDays(null)">全部區間</button>`}
+function applyPresetDays(n){if(n===null){crFrom.value=minDate;crTo.value=maxDate;}else{const end=new Date(maxDate+'T00:00:00'),start=new Date(end);start.setDate(end.getDate()-(n-1));let s=fmtDate(start);if(s<minDate)s=minDate;crFrom.value=s;crTo.value=maxDate;}customSet=new Set(dateArray(crFrom.value,crTo.value));buildDateChecks();renderCustomChart();}
+function applyCustomDays(){const n=parseInt(customDaysInput.value,10);if(!n||n<1){showToast('請輸入有效天數');return}applyPresetDays(n);showToast(`已套用最近 ${n} 天`)}
+function initCustom(){if(!crFrom.value){crFrom.value=minDate;crTo.value=maxDate;customSet=new Set(dateArray(minDate,maxDate));buildDateChecks()}}
+function applyCustomRange(){if(!crFrom.value||!crTo.value||crFrom.value>crTo.value){showToast('請確認日期區間');return}customSet=new Set(dateArray(crFrom.value,crTo.value));buildDateChecks();renderCustomChart()}
+function buildDateChecks(){const c=countBy(RECORDS,'date');dateChecks.innerHTML=dateArray(crFrom.value,crTo.value).map(d=>`<label class="chip"><input type="checkbox" ${customSet.has(d)?'checked':''} onchange="toggleCustom('${d}',this.checked)">${d.slice(5)}（${c[d]||0}筆）</label>`).join('')}
+function toggleCustom(d,on){on?customSet.add(d):customSet.delete(d);renderCustomChart()}
+function toggleAllCustom(on){customSet=on?new Set(dateArray(crFrom.value,crTo.value)):new Set();buildDateChecks();renderCustomChart()}
+function renderCustomChart(){if(!document.getElementById('customCanvas'))return;const ds=[...customSet].sort(),c=countBy(RECORDS,'date'),tc=theme();chart('customCanvas','custom','line',{labels:ds,datasets:[{data:ds.map(d=>c[d]||0),borderColor:'#a855f7',backgroundColor:'#a855f733',fill:true,tension:.3}]},{plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)drillTo({date:ds[el[0].index]},'日期下鑽：'+ds[el[0].index])},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}});customHint.textContent=`目前共選擇 ${ds.length} 天，總壓合筆數 ${ds.reduce((s,d)=>s+(c[d]||0),0)} 筆。`}
+
+function openFilteredCharts(){filteredChartsPanel.style.display='block';renderFilteredCharts();filteredChartsPanel.scrollIntoView({behavior:'smooth'})}
+function renderFilteredCharts(){
+  const src=filtered,types=[...document.querySelectorAll('#filteredChartsPanel input:checked')].map(x=>x.value),box=filteredCharts;
+  if(!src.length){box.innerHTML='<div class="empty">目前篩選結果無資料。</div>';filteredKpis.innerHTML='';return}
+  const ce=entries(countBy(src,'cond')),se=entries(countBy(src,'staff')),de=Object.entries(countBy(src,'date')).sort(),she=entries(countBy(src,'shift')),ds=new Set(src.map(r=>r.date));
+  filteredKpis.innerHTML=[['篩選結果筆數',src.length],['涵蓋天數',ds.size],['平均每日筆數',(src.length/ds.size).toFixed(1)],['條件／人員種類',ce.length+'/'+se.length]].map(x=>`<div class="kpi"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+  box.innerHTML=(types.includes('pie')?'<div class="chartbox"><h4>壓合條件分布</h4><canvas id="fp"></canvas></div>':'')+
+    (types.includes('doughnut')?'<div class="chartbox"><h4>人員／單位分布</h4><canvas id="fd"></canvas></div>':'')+
+    (types.includes('shift')?'<div class="chartbox"><h4>班別比較</h4><canvas id="fs"></canvas></div>':'')+
+    (types.includes('line')?'<div class="chartbox wide"><h4>每日產量趨勢</h4><canvas id="fl"></canvas></div>':'')+
+    (types.includes('bar')?'<div class="chartbox wide"><h4>條件排行榜</h4><canvas id="fb"></canvas></div>':'');
+  const tc=theme();
+  if(types.includes('pie'))chart('fp','fp','pie',{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:colors}]},{plugins:{legend:{position:'bottom'}}});
+  if(types.includes('doughnut'))chart('fd','fd','doughnut',{labels:se.map(x=>x[0]),datasets:[{data:se.map(x=>x[1]),backgroundColor:colors}]},{plugins:{legend:{position:'bottom'}}});
+  if(types.includes('shift'))chart('fs','fs','bar',{labels:she.map(x=>x[0]),datasets:[{data:she.map(x=>x[1]),backgroundColor:'#f59e0b'}]},{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  if(types.includes('line'))chart('fl','fl','line',{labels:de.map(x=>x[0]),datasets:[{data:de.map(x=>x[1]),borderColor:'#3b82f6',fill:false,tension:.3}]},{plugins:{legend:{display:false}},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  if(types.includes('bar'))chart('fb','fb','bar',{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:'#22c55e'}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:tc.grid}},y:{grid:{color:tc.grid}}}});
+}
+
+function renderShiftRows(){
+  shiftRows.innerHTML=shiftConfig.map((s,i)=>`<div class="shiftRow">
+    <input type="text" value="${esc(s.name)}" onchange="updateShift(${i},'name',this.value)">
+    <input type="time" value="${s.start}" onchange="updateShift(${i},'start',this.value)">
+    <input type="time" value="${s.end==='24:00'?'00:00':s.end}" onchange="updateShift(${i},'end',this.value)">
+    <button class="btn ghost" onclick="removeShiftRow(${i})">🗑</button>
+  </div>`).join('');
+}
+function updateShift(i,field,val){shiftConfig[i][field]=val;}
+function addShiftRow(){shiftConfig.push({name:'新班別'+(shiftConfig.length+1),start:'00:00',end:'08:00'});renderShiftRows();}
+function removeShiftRow(i){if(shiftConfig.length<=1){showToast('至少需保留一個班別');return}shiftConfig.splice(i,1);renderShiftRows();}
+function applyShiftPreset(n){shiftConfig=n===3?[{name:'白班',start:'08:00',end:'16:00'},{name:'中班',start:'16:00',end:'24:00'},{name:'夜班',start:'00:00',end:'08:00'}]:[{name:'日班',start:'08:00',end:'20:00'},{name:'夜班',start:'20:00',end:'08:00'}];renderShiftRows();}
+function applyShiftConfig(){recomputeShifts();shiftConfigHint.textContent=`班別設定已套用（共 ${shiftConfig.length} 班）。`;refreshAll();showToast('班別設定已套用 ✓');}
+
+let condSortKey='count', condSortDir=-1, condStats=[];
+function buildCondStats(){
+  const byCond={};RECORDS.forEach(r=>{(byCond[r.cond]=byCond[r.cond]||[]).push(r)});
+  const total=RECORDS.length;
+  condStats=Object.entries(byCond).map(([cond,list])=>{
+    const dates=list.map(r=>r.date).sort();const staffCount=new Set(list.map(r=>r.staff));const staffFreq=entries(countBy(list,'staff'));
+    const span=(new Date(dates[dates.length-1])-new Date(dates[0]))/86400000;
+    return {cond,count:list.length,share:(list.length/total*100).toFixed(1),staffCount:staffCount.size,mainStaff:staffFreq[0][0],first:dates[0],last:dates[dates.length-1],span:Math.round(span),list};
+  });
+}
+function sortCondTable(key){condSortDir=(condSortKey===key)?-condSortDir:-1;condSortKey=key;renderCondTable();}
+function renderCondPanel(){
+  buildCondStats();
+  const total=RECORDS.length,condN=condStats.length;
+  condKpis.innerHTML=[['條件種類總數',condN],['總壓合筆數',total]].map(x=>`<div class="kpi"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+  const top=[...condStats].sort((a,b)=>b.count-a.count).slice(0,10);const tc=theme();
+  chart('condRankChart','condRank','bar',{labels:top.map(c=>c.cond),datasets:[{data:top.map(c=>c.count),backgroundColor:colors}]},{indexAxis:'y',plugins:{legend:{display:false}},onClick:(e,el)=>{if(el.length)showCondDetail(top[el[0].index].cond)},scales:{x:{beginAtZero:true,grid:{color:tc.grid}},y:{grid:{color:tc.grid}}}});
+  renderCondTable();
+}
+function renderCondTable(){
+  const rows=[...condStats].sort((a,b)=>{const av=a[condSortKey],bv=b[condSortKey];if(av<bv)return -1*condSortDir;if(av>bv)return 1*condSortDir;return 0;});
+  condTableBody.innerHTML=rows.map(c=>`<tr class="clickable" onclick="showCondDetail('${c.cond.replace(/'/g,"\\'")}')"><td>${esc(c.cond)}</td><td>${c.count}</td><td>${c.share}%</td><td>${c.staffCount}</td><td>${esc(c.mainStaff)}</td><td>${c.first}</td><td>${c.last}</td><td>${c.span}</td></tr>`).join('');
+}
+function showCondDetail(cond){
+  const c=condStats.find(x=>x.cond===cond);if(!c)return;
+  const dc=Object.entries(countBy(c.list,'date')).sort();const staffE=entries(countBy(c.list,'staff'));
+  condDetail.classList.add('show');
+  condDetail.innerHTML=`<h4 style="margin-top:0">${esc(cond)} — 詳細分析</h4><div class="hint">使用次數：${c.count}｜佔比：${c.share}%｜操作人員數：${c.staffCount}｜首次：${c.first}｜最近：${c.last}</div>
+  <div class="chartGrid" style="margin-top:10px"><div class="chartbox"><h4>使用趨勢</h4><canvas id="condDetailLine"></canvas></div><div class="chartbox"><h4>操作人員分布</h4><canvas id="condDetailPie"></canvas></div></div>`;
+  const tc=theme();
+  chart('condDetailLine','condDetailLine','line',{labels:dc.map(x=>x[0]),datasets:[{data:dc.map(x=>x[1]),borderColor:'#3b82f6',backgroundColor:'#3b82f633',fill:true,tension:.3}]},{plugins:{legend:{display:false}},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  chart('condDetailPie','condDetailPie','pie',{labels:staffE.map(x=>x[0]),datasets:[{data:staffE.map(x=>x[1]),backgroundColor:colors}]},{plugins:{legend:{position:'bottom'}}});
+  condDetail.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function renderStaffPanel(){
+  const byStaff={};RECORDS.forEach(r=>{(byStaff[r.staff]=byStaff[r.staff]||[]).push(r)});
+  const total=RECORDS.length;
+  const stats=Object.entries(byStaff).map(([staff,list])=>{
+    const days=new Set(list.map(r=>r.date));const condE=entries(countBy(list,'cond')).slice(0,3);
+    return {staff,count:list.length,share:list.length/total,days:days.size,avg:(list.length/days.size).toFixed(1),topConds:condE.map(x=>x[0]+'('+x[1]+')').join('、')};
+  }).sort((a,b)=>b.count-a.count);
+  staffKpis.innerHTML=[['人員／單位數',stats.length],['總筆數',total],['平均每人筆數',(total/stats.length).toFixed(1)]].map(x=>`<div class="kpi"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+  const tc=theme();
+  chart('staffBarChart','staffBar','bar',{labels:stats.map(s=>s.staff),datasets:[{data:stats.map(s=>s.count),backgroundColor:colors}]},{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  chart('staffMonthChart','staffMonth','bar',{labels:stats.map(s=>s.staff),datasets:months.map((m,i)=>({label:m,data:stats.map(s=>byStaff[s.staff].filter(r=>r.month===m).length),backgroundColor:colors[i%colors.length]}))},{scales:{x:{stacked:true,grid:{color:tc.grid}},y:{stacked:true,beginAtZero:true,grid:{color:tc.grid}}}});
+  staffTableBody.innerHTML=stats.map(s=>`<tr><td>${esc(s.staff)}</td><td>${s.count}</td><td>${(s.share*100).toFixed(1)}%</td><td>${s.days}</td><td>${s.avg}</td><td>${esc(s.topConds)}</td></tr>`).join('');
+}
+
+function buildEvents(){
+  const events=[];
+  months.forEach(m=>{
+    const dayCounts=countBy(RECORDS.filter(r=>r.month===m),'date');const vals=Object.values(dayCounts);if(!vals.length)return;
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    Object.entries(dayCounts).forEach(([d,c])=>{if(c<avg*0.5)events.push({type:'low',date:d,label:`產量偏低警示：${d} 僅 ${c} 筆（當月平均 ${avg.toFixed(1)} 筆）`});});
+  });
+  RECORDS.forEach(r=>{if(r.cond.includes('鍋爐降溫')||r.cond.includes('Warmup'))events.push({type:'nonprod',date:r.date,label:`非生產性批次：${r.time}｜${r.cond}｜${r.staff}`});});
+  const sums={},counts={};RECORDS.forEach(r=>{sums[r.cond]=(sums[r.cond]||0)+r.kwh;counts[r.cond]=(counts[r.cond]||0)+1});
+  const avgKwh={};Object.keys(sums).forEach(c=>avgKwh[c]=sums[c]/counts[c]);
+  RECORDS.forEach(r=>{if(r.kwh>avgKwh[r.cond]*1.2)events.push({type:'energy',date:r.date,label:`能耗異常：${r.time}｜${r.cond}｜${r.kwh}kWh（該條件平均 ${avgKwh[r.cond].toFixed(2)}kWh）`});});
+  events.sort((a,b)=>a.date<b.date?1:-1);
+  return events;
+}
+function renderEventsPanel(){
+  const events=buildEvents();
+  const typeCounts={低產量警示:events.filter(e=>e.type==='low').length,非生產性批次:events.filter(e=>e.type==='nonprod').length,能耗異常:events.filter(e=>e.type==='energy').length};
+  eventKpis.innerHTML=[['事件總數',events.length],['產量偏低警示',typeCounts['低產量警示']],['非生產性批次',typeCounts['非生產性批次']],['能耗異常',typeCounts['能耗異常']]].map(x=>`<div class="kpi"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+  const tc=theme();
+  chart('eventTypeChart','eventType','bar',{labels:Object.keys(typeCounts),datasets:[{data:Object.values(typeCounts),backgroundColor:['#f59e0b','#a7b0c2','#ef4444']}]},{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  const nonprod=RECORDS.filter(r=>r.cond.includes('鍋爐降溫')||r.cond.includes('Warmup'));
+  const byCondMonth={};nonprod.forEach(r=>{const k=r.cond;byCondMonth[k]=byCondMonth[k]||{};byCondMonth[k][r.month]=(byCondMonth[k][r.month]||0)+1;});
+  recurrenceBox.innerHTML=Object.entries(byCondMonth).map(([cond,mm])=>{
+    const totalCnt=Object.values(mm).reduce((a,b)=>a+b,0);const monthsAppeared=Object.keys(mm).length;
+    const flag=totalCnt>=3?`<span class="tag warn">🔁 重複發生 ${totalCnt} 次</span>`:`<span class="tag ok">偶發</span>`;
+    return `<div style="margin-bottom:8px"><b>${esc(cond)}</b>　共 ${totalCnt} 次（跨 ${monthsAppeared} 個月）　${flag}</div>`;
+  }).join('')||'<div class="hint">無重複性非生產性批次資料。</div>';
+  eventTimeline.innerHTML=events.map(e=>`<div class="eventItem"><span class="eventDot ${e.type}"></span><div class="eventBody"><b>${e.date}</b><span class="meta">${esc(e.label)}</span></div></div>`).join('')||'<div class="hint">目前無異常事件。</div>';
+}
+
+function renderRateRows(){
+  rateRows.innerHTML=Object.keys(DEFAULT_RATES).map(period=>`<div class="rateRow"><span>${period}</span><input type="number" step="0.1" min="0" id="rate_${period}" value="${rates[period]}"> <span class="hint" style="margin:0">NT$/kWh</span></div>`).join('');
+}
+function applyRates(){
+  Object.keys(DEFAULT_RATES).forEach(period=>{const v=parseFloat(document.getElementById('rate_'+period).value);if(!isNaN(v)&&v>=0)rates[period]=v;});
+  recomputeCost();
+  rateHint.textContent=`電價已套用：尖峰 NT$${rates['尖峰']}/kWh、半尖峰 NT$${rates['半尖峰']}/kWh、離峰 NT$${rates['離峰']}/kWh。`;
+  renderEnergyPanel();showToast('電價設定已套用 ✓');
+}
+function resetRates(){rates={...DEFAULT_RATES};recomputeCost();renderRateRows();rateHint.textContent='已恢復預設電價。';renderEnergyPanel();showToast('已恢復預設電價 ✓');}
+function renderEnergyPanel(){
+  const totalKwh=RECORDS.reduce((a,r)=>a+r.kwh,0),totalCost=RECORDS.reduce((a,r)=>a+r.cost,0),totalIdle=RECORDS.reduce((a,r)=>a+r.idle_kwh,0);
+  energyKpis.innerHTML=[['總耗電量(kWh)',totalKwh.toFixed(1)],['總電費估算(NT$)',totalCost.toFixed(0)],['平均每批耗電(kWh)',(totalKwh/RECORDS.length).toFixed(2)],['待機耗電占比',(totalIdle/totalKwh*100).toFixed(1)+'%']].map(x=>`<div class="kpi energy"><div class="num">${x[1]}</div><div class="lbl">${x[0]}</div></div>`).join('');
+  const tc=theme();
+  const sums={},counts={};RECORDS.forEach(r=>{sums[r.cond]=(sums[r.cond]||0)+r.kwh;counts[r.cond]=(counts[r.cond]||0)+1});
+  const condAvg={};Object.keys(sums).forEach(c=>condAvg[c]=sums[c]/counts[c]);
+  const ce=Object.entries(condAvg).sort((a,b)=>b[1]-a[1]);
+  chart('energyCondChart','energyCond','bar',{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1].toFixed(2)),backgroundColor:'#3b82f6'}]},{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:tc.grid}},y:{grid:{color:tc.grid}}}});
+  const periodCost={};RECORDS.forEach(r=>{periodCost[r.period]=(periodCost[r.period]||0)+r.cost});
+  chart('energyPeriodChart','energyPeriod','pie',{labels:Object.keys(periodCost),datasets:[{data:Object.values(periodCost).map(v=>v.toFixed(0)),backgroundColor:['#ef4444','#f59e0b','#22c55e']}]},{plugins:{legend:{position:'bottom'}}});
+  const dailyKwh={},dailyCost={};RECORDS.forEach(r=>{dailyKwh[r.date]=(dailyKwh[r.date]||0)+r.kwh;dailyCost[r.date]=(dailyCost[r.date]||0)+r.cost});
+  const days=Object.keys(dailyKwh).sort();
+  chart('energyDailyChart','energyDaily','bar',{labels:days,datasets:[{type:'bar',label:'kWh',data:days.map(d=>dailyKwh[d].toFixed(1)),backgroundColor:'#fbbf24',yAxisID:'y'},{type:'line',label:'電費NT$',data:days.map(d=>dailyCost[d].toFixed(0)),borderColor:'#22c55e',yAxisID:'y1',tension:.3}]},{scales:{y:{position:'left',beginAtZero:true,grid:{color:tc.grid}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}},x:{grid:{color:tc.grid}}}});
+  const staffKwh={},staffCost={};RECORDS.forEach(r=>{staffKwh[r.staff]=(staffKwh[r.staff]||0)+r.kwh;staffCost[r.staff]=(staffCost[r.staff]||0)+r.cost});
+  const staffs=Object.keys(staffKwh);
+  chart('energyStaffChart','energyStaff','bar',{labels:staffs,datasets:[{label:'耗電量(kWh)',data:staffs.map(s=>staffKwh[s].toFixed(1)),backgroundColor:'#3b82f6',yAxisID:'y'},{label:'電費(NT$)',data:staffs.map(s=>staffCost[s].toFixed(0)),backgroundColor:'#fbbf24',yAxisID:'y1'}]},{scales:{y:{position:'left',beginAtZero:true,grid:{color:tc.grid}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}}}});
+}
+
+function renderBulkCondSelect(){bulkCondSelect.innerHTML=allConds.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');}
+function applyBulkKwh(){
+  const cond=bulkCondSelect.value, v=parseFloat(bulkKwhInput.value);
+  if(isNaN(v)||v<0){showToast('請輸入有效的kWh數值');return}
+  RECORDS.filter(r=>r.cond===cond).forEach(r=>r.kwh=v);
+  recomputeCost();renderKwhEditTable();renderEnergyPanel();
+  showToast(`已將「${cond}」共 ${RECORDS.filter(r=>r.cond===cond).length} 筆的kWh設為 ${v}`);
+}
+function toggleKwhEditTable(){const show=kwhEditWrap.style.display==='none';kwhEditWrap.style.display=show?'block':'none';if(show)renderKwhEditTable();}
+function renderKwhEditTable(){
+  if(kwhEditWrap.style.display==='none')return;
+  kwhEditBody.innerHTML=RECORDS.map(r=>`<tr><td>${r.id}</td><td>${r.time}</td><td>${esc(r.cond)}</td><td>${esc(r.staff)}</td><td>${esc(r.period)}</td><td><input class="kwhInput" type="number" step="0.01" min="0" value="${r.kwh}" id="kwhInput_${r.id}"></td></tr>`).join('');
+}
+function saveAllKwhEdits(){
+  let changed=0;
+  RECORDS.forEach(r=>{const el=document.getElementById('kwhInput_'+r.id);if(el){const v=parseFloat(el.value);if(!isNaN(v)&&v>=0&&v!==r.kwh){r.kwh=v;changed++;}}});
+  recomputeCost();renderEnergyPanel();
+  showToast(`已儲存 ${changed} 筆kWh變更 ✓`);
+}
+
+const METER_PRESETS=['熱媒油系統','壓機系統'];
+let meterViewFilter='all';
+let meterSearchQuery='';
+let meterSortKey='datetime', meterSortDir=-1;
+let meterSelectedIds=new Set();
+let meterEditingId=null;
+function setMeterName(name){ meterName.value=name; document.querySelectorAll('.meterQuickBtn').forEach(b=>b.classList.toggle('active', b.dataset.name===name)); }
+function loadMeterReadings(){try{return JSON.parse(localStorage.getItem('heatA_meterReadings')||'[]');}catch(e){return [];}}
+function saveMeterReadings(list){localStorage.setItem('heatA_meterReadings',JSON.stringify(list));}
+function addMeterReading(){
+  const name=meterName.value.trim(), dt=meterDatetime.value, reading=parseFloat(meterReading.value), note=meterNote.value.trim();
+  if(!name||!dt||isNaN(reading)){showToast('請完整填寫電表名稱、抄表時間與讀值');return}
+  const list=loadMeterReadings();
+  list.push({id:Date.now(), name, datetime:dt, reading, note});
+  saveMeterReadings(list);
+  meterDatetime.value='';meterReading.value='';meterNote.value='';
+  renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();
+  showToast(`「${name}」抄表紀錄已新增 ✓`);
+}
+function deleteMeterReading(id){
+  const list=loadMeterReadings().filter(x=>x.id!==id);
+  saveMeterReadings(list);
+  meterSelectedIds.delete(id);
+  renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();
+  showToast('已刪除該筆抄表紀錄');
+}
+function deleteSelectedMeterReadings(){
+  if(!meterSelectedIds.size){showToast('請先勾選要刪除的紀錄');return}
+  const list=loadMeterReadings().filter(x=>!meterSelectedIds.has(x.id));
+  saveMeterReadings(list);
+  const n=meterSelectedIds.size;
+  meterSelectedIds=new Set();
+  renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();
+  showToast(`已批次刪除 ${n} 筆抄表紀錄 ✓`);
+}
+function allMeterNames(){
+  const list=loadMeterReadings();
+  const names=new Set(METER_PRESETS);
+  list.forEach(r=>names.add(r.name));
+  return [...names];
+}
+function renderMeterViewFilterRow(){
+  const names=allMeterNames();
+  meterViewFilterRow.innerHTML = `<button onclick="setMeterView('all')" class="${meterViewFilter==='all'?'active':''}">🔗 一起看（全部電表）</button>` +
+    names.map(n=>`<button onclick="setMeterView('${n.replace(/'/g,"\\'")}')" class="${meterViewFilter===n?'active':''}">${n==='熱媒油系統'?'🛢️':(n==='壓機系統'?'🗜️':'📟')} 只看：${esc(n)}</button>`).join('');
+}
+function setMeterView(v){meterViewFilter=v;renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();}
+function onMeterSearchInput(){meterSearchQuery=meterSearchInput.value.trim().toLowerCase();renderMeterTable();}
+function sortMeterTable(key){
+  meterSortDir = (meterSortKey===key) ? -meterSortDir : -1;
+  meterSortKey=key;
+  ['thDatetime','thName','thReading'].forEach(id=>document.getElementById(id).classList.remove('sortAsc','sortDesc'));
+  const thMap={datetime:'thDatetime',name:'thName',reading:'thReading'};
+  document.getElementById(thMap[key]).classList.add(meterSortDir===1?'sortAsc':'sortDesc');
+  renderMeterTable();
+}
+function getFilteredSortedMeterList(){
+  let list=loadMeterReadings();
+  if(meterViewFilter!=='all') list=list.filter(r=>r.name===meterViewFilter);
+  if(meterSearchQuery) list=list.filter(r=>`${r.name} ${r.note||''} ${r.datetime} ${r.reading}`.toLowerCase().includes(meterSearchQuery));
+  list=[...list].sort((a,b)=>{
+    let av=a[meterSortKey], bv=b[meterSortKey];
+    if(meterSortKey==='reading'){ av=+av; bv=+bv; }
+    if(av<bv) return -1*meterSortDir;
+    if(av>bv) return 1*meterSortDir;
+    return 0;
+  });
+  return list;
+}
+function toggleMeterSelectAll(checked){
+  const list=getFilteredSortedMeterList();
+  if(checked) list.forEach(r=>meterSelectedIds.add(r.id));
+  else list.forEach(r=>meterSelectedIds.delete(r.id));
+  renderMeterTable();
+}
+function toggleMeterSelect(id,checked){checked?meterSelectedIds.add(id):meterSelectedIds.delete(id);updateMeterSelCountHint();}
+function updateMeterSelCountHint(){meterSelCountHint.textContent = meterSelectedIds.size? `已勾選 ${meterSelectedIds.size} 筆待刪除` : '';}
+function startEditMeter(id){meterEditingId=id;renderMeterTable();}
+function cancelEditMeter(){meterEditingId=null;renderMeterTable();}
+function saveEditMeter(id){
+  const name=document.getElementById('editName_'+id).value.trim();
+  const dt=document.getElementById('editDt_'+id).value;
+  const reading=parseFloat(document.getElementById('editReading_'+id).value);
+  const note=document.getElementById('editNote_'+id).value.trim();
+  if(!name||!dt||isNaN(reading)){showToast('請完整填寫編輯內容');return}
+  const list=loadMeterReadings();
+  const idx=list.findIndex(x=>x.id===id);
+  if(idx>-1){ list[idx]={...list[idx], name, datetime:dt, reading, note}; saveMeterReadings(list); }
+  meterEditingId=null;
+  renderMeterViewFilterRow();renderMeterTable();renderMeterDeltas();
+  showToast('抄表紀錄已更新 ✓');
+}
+function renderMeterTable(){
+  const list=getFilteredSortedMeterList();
+  updateMeterSelCountHint();
+  if(!list.length){meterTableBody.innerHTML='<tr><td colspan="6" class="empty">尚無符合條件的抄表紀錄。</td></tr>';return}
+  meterTableBody.innerHTML=list.map(r=>{
+    const cls = r.name==='熱媒油系統'?'meterA':(r.name==='壓機系統'?'meterB':'');
+    if(meterEditingId===r.id){
+      return `<tr>
+        <td></td>
+        <td><input class="editInput" type="datetime-local" id="editDt_${r.id}" value="${r.datetime}"></td>
+        <td><input class="editInput" type="text" id="editName_${r.id}" value="${esc(r.name)}"></td>
+        <td><input class="editInput" type="number" step="0.01" id="editReading_${r.id}" value="${r.reading}"></td>
+        <td><input class="editInput" type="text" id="editNote_${r.id}" value="${esc(r.note||'')}"></td>
+        <td><button class="btn primary" onclick="saveEditMeter(${r.id})">💾 儲存</button> <button class="btn" onclick="cancelEditMeter()">取消</button></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td><input type="checkbox" ${meterSelectedIds.has(r.id)?'checked':''} onchange="toggleMeterSelect(${r.id},this.checked)"></td>
+      <td>${r.datetime.replace('T',' ')}</td>
+      <td><span class="tag ${cls}">${esc(r.name)}</span></td>
+      <td>${r.reading}</td>
+      <td>${esc(r.note||'')}</td>
+      <td><button class="btn ghost" onclick="startEditMeter(${r.id})">✏️ 編輯</button> <button class="btn danger2" onclick="deleteMeterReading(${r.id})">🗑 刪除</button></td>
+    </tr>`;
+  }).join('');
+}
+function computeMeterDeltas(){
+  const list=loadMeterReadings();
+  const byMeter={};
+  list.forEach(r=>{(byMeter[r.name]=byMeter[r.name]||[]).push(r)});
+  const result={};
+  Object.entries(byMeter).forEach(([name,arr])=>{
+    const sorted=[...arr].sort((a,b)=>a.datetime<b.datetime?-1:1);
+    const deltas=[];
+    for(let i=1;i<sorted.length;i++){
+      const prev=sorted[i-1], cur=sorted[i];
+      const delta=+(cur.reading-prev.reading).toFixed(2);
+      const fromDate=prev.datetime.slice(0,10), toDate=cur.datetime.slice(0,10);
+      const matched=RECORDS.filter(r=>r.date>=fromDate && r.date<=toDate).length;
+      deltas.push({from:prev.datetime, to:cur.datetime, delta, matched, avgPerBatch: matched>0?+(delta/matched).toFixed(2):null});
+    }
+    result[name]=deltas;
+  });
+  return result;
+}
+function renderMeterDeltas(){
+  const all=computeMeterDeltas();
+  const names = meterViewFilter==='all' ? Object.keys(all) : (all[meterViewFilter]?[meterViewFilter]:[]);
+  meterDeltaHint.textContent = meterViewFilter==='all'
+    ? '目前顯示：全部電表的區間耗電量估算。'
+    : `目前顯示：僅「${meterViewFilter}」的區間耗電量估算。`;
+  if(!names.length || names.every(n=>!all[n] || all[n].length===0)){
+    meterDeltaBox.innerHTML='<div class="hint">需至少輸入2筆同一電表名稱的抄表紀錄，才能計算區間耗電量。</div>';
+    return;
+  }
+  let html='';
+  names.forEach(name=>{
+    const deltas=all[name]||[];
+    const cls = name==='熱媒油系統'?'meterA':(name==='壓機系統'?'meterB':'');
+    deltas.forEach(d=>{
+      html+=`<div class="deltaCard"><span class="tag ${cls}">${esc(name)}</span> ${d.from.replace('T',' ')} → ${d.to.replace('T',' ')}<br>
+        區間耗電量：<span class="v">${d.delta} kWh</span>　同期間壓合筆數：<b>${d.matched}</b> 筆　平均每批耗電：<span class="v">${d.avgPerBatch??'—'}</span> kWh</div>`;
+    });
+  });
+  meterDeltaBox.innerHTML=html||'<div class="hint">尚無足夠連續抄表紀錄可計算。</div>';
+}
+function renderMeterCharts(){
+  const all=computeMeterDeltas();
+  const list=loadMeterReadings();
+  const names = meterViewFilter==='all' ? [...new Set(list.map(r=>r.name))] : (list.some(r=>r.name===meterViewFilter)?[meterViewFilter]:[]);
+  if(!names.length){meterCharts.innerHTML='<div class="empty">尚無抄表資料可產生圖表，請先新增抄表紀錄。</div>';return}
+  const meterColor={'熱媒油系統':'#f59e0b','壓機系統':'#06b6d4'};
+  meterCharts.innerHTML='<div class="chartbox wide"><h4>累積讀值趨勢（各電表）</h4><canvas id="meterTrendChart"></canvas></div>'+
+    '<div class="chartbox"><h4>各次區間耗電量</h4><canvas id="meterDeltaChart"></canvas></div>'+
+    '<div class="chartbox"><h4>總耗電量占比（電表間比較）</h4><canvas id="meterShareChart"></canvas></div>';
+  const tc=theme();
+  const trendDatasets=names.map(n=>{
+    const sorted=list.filter(r=>r.name===n).sort((a,b)=>a.datetime<b.datetime?-1:1);
+    return {label:n, data:sorted.map(r=>r.reading), borderColor:meterColor[n]||'#3b82f6', backgroundColor:(meterColor[n]||'#3b82f6')+'33', tension:.2};
+  });
+  const trendLabels=[...new Set(list.filter(r=>names.includes(r.name)).map(r=>r.datetime).sort())].map(d=>d.replace('T',' '));
+  chart('meterTrendChart','meterTrend','line',{labels:trendLabels,datasets:trendDatasets},{plugins:{legend:{position:'top'}},scales:{x:{grid:{color:tc.grid}},y:{beginAtZero:false,grid:{color:tc.grid}}}});
+  const deltaLabels=[],deltaData=[],deltaColors=[];
+  names.forEach(n=>{(all[n]||[]).forEach((d,i)=>{deltaLabels.push(`${n} #${i+1}`);deltaData.push(d.delta);deltaColors.push(meterColor[n]||'#3b82f6');});});
+  chart('meterDeltaChart','meterDelta','bar',{labels:deltaLabels,datasets:[{data:deltaData,backgroundColor:deltaColors}]},{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:tc.grid}}}});
+  const shareLabels=[],shareData=[],shareColors=[];
+  Object.keys(all).forEach(n=>{ if(names.includes(n)){ const total=(all[n]||[]).reduce((s,d)=>s+d.delta,0); if(total>0){shareLabels.push(n);shareData.push(total.toFixed(1));shareColors.push(meterColor[n]||'#3b82f6');} } });
+  chart('meterShareChart','meterShare','pie',{labels:shareLabels,datasets:[{data:shareData,backgroundColor:shareColors}]},{plugins:{legend:{position:'bottom'}}});
+  showToast('電表資訊圖表已產生 ✓');
+}
+
+updated.textContent=`資料最後更新：${RECORDS[RECORDS.length-1].time}`;
+renderKPIs();fillFilters();refreshAll();renderCalendar();updateHistoryButtons();renderShiftRows();
+</script>
+</body></html>
